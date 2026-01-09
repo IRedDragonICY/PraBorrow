@@ -3,6 +3,7 @@ name = "praborrow"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+description = "High-performance distributed systems framework enforcing memory safety with sovereign integrity. Combines strict ownership semantics, procedural invariant checking, and zero-copy logistics."
 license.workspace = true
 repository.workspace = true
 documentation = "https://docs.rs/praborrow"

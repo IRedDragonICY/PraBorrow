@@ -3,6 +3,7 @@ name = "praborrow-core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
+description = "Core primitives for the PraBorrow distributed systems framework. Implements Sovereign<T> for strict ownership enforcement across network boundaries."
 license.workspace = true
 repository.workspace = true
 documentation = "https://docs.rs/praborrow-core"
