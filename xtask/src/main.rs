@@ -165,8 +165,8 @@ fn run_publish(sh: &Shell, dry_run: bool) -> Result<()> {
         } else {
              println!("{}", format!("✅ Published {}", crate_name).green());
              if !dry_run {
-                 println!("   Waiting 10s for index propagation...");
-                 std::thread::sleep(std::time::Duration::from_secs(10));
+                 println!("   Waiting 15s for index propagation...");
+                 std::thread::sleep(std::time::Duration::from_secs(15));
              }
         }
     }
