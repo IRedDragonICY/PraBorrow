@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Data, Fields, Attribute, Meta, Expr, Lit};
+use syn::{parse_macro_input, DeriveInput, Data, Fields, Meta, Lit};
 
 #[proc_macro_derive(Constitution, attributes(invariant))]
 pub fn derive_constitution(input: TokenStream) -> TokenStream {
