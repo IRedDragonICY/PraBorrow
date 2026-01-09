@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "crates/praborrow-core",
+    "crates/praborrow-defense",
+    "crates/praborrow-logistics",
+    "crates/praborrow-diplomacy",
+    "crates/praborrow",
+]
+resolver = "2"

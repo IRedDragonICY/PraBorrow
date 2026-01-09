@@ -1,0 +1,12 @@
+[submodule "crates/praborrow-core"]
+	path = crates/praborrow-core
+	url = https://github.com/ireddragonicy/praborrow-core.git
+[submodule "crates/praborrow-defense"]
+	path = crates/praborrow-defense
+	url = https://github.com/ireddragonicy/praborrow-defense.git
+[submodule "crates/praborrow-logistics"]
+	path = crates/praborrow-logistics
+	url = https://github.com/ireddragonicy/praborrow-logistics.git
+[submodule "crates/praborrow-diplomacy"]
+	path = crates/praborrow-diplomacy
+	url = https://github.com/ireddragonicy/praborrow-diplomacy.git

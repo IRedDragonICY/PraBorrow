@@ -1,0 +1,10 @@
+[package]
+name = "praborrow"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+praborrow-core = { path = "../praborrow-core" }
+praborrow-defense = { path = "../praborrow-defense" }
+praborrow-logistics = { path = "../praborrow-logistics" }
+praborrow-diplomacy = { path = "../praborrow-diplomacy" }
