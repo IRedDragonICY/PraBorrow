@@ -21,7 +21,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-praborrow = "0.1.0"
+praborrow = "0.2.0"
 ```
 
 ## Quick Start
@@ -54,4 +54,4 @@ fn main() {
 
 ## License
 
-Proprietary / Internal Distribution.
+MIT
