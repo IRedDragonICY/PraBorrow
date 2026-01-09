@@ -1,7 +1,7 @@
 [package]
 name = "praborrow"
-version = "0.1.0"
-edition = "2021"
+version = "0.1.1"
+edition = "2024"
 authors = ["ireddragonicy"]
 description = "High-performance distributed systems framework enforcing memory safety with sovereign integrity. Combines strict ownership semantics, procedural invariant checking, and zero-copy logistics."
 license = "MIT"
@@ -12,7 +12,7 @@ keywords = ["distributed", "framework", "ownership", "memory-safety", "systems"]
 categories = ["concurrency", "memory-management", "network-programming"]
 
 [dependencies]
-praborrow-core = { path = "../praborrow-core", version = "0.1.0" }
-praborrow-defense = { path = "../praborrow-defense", version = "0.1.0" }
-praborrow-logistics = { path = "../praborrow-logistics", version = "0.1.0" }
-praborrow-diplomacy = { path = "../praborrow-diplomacy", version = "0.1.0" }
+praborrow-core = { path = "../praborrow-core", version = "0.1.1" }
+praborrow-defense = { path = "../praborrow-defense", version = "0.1.1" }
+praborrow-logistics = { path = "../praborrow-logistics", version = "0.1.1" }
+praborrow-diplomacy = { path = "../praborrow-diplomacy", version = "0.1.1" }
