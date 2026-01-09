@@ -2,9 +2,17 @@
 name = "praborrow"
 version = "0.1.0"
 edition = "2021"
+authors = ["ireddragonicy"]
+description = "High-performance distributed systems framework enforcing memory safety with sovereign integrity. Combines strict ownership semantics, procedural invariant checking, and zero-copy logistics."
+license = "MIT"
+repository = "https://github.com/ireddragonicy/PraBorrow"
+documentation = "https://docs.rs/praborrow"
+readme = "README.md"
+keywords = ["distributed", "framework", "ownership", "memory-safety", "systems"]
+categories = ["concurrency", "memory-management", "network-programming"]
 
 [dependencies]
-praborrow-core = { path = "../praborrow-core" }
-praborrow-defense = { path = "../praborrow-defense" }
-praborrow-logistics = { path = "../praborrow-logistics" }
-praborrow-diplomacy = { path = "../praborrow-diplomacy" }
+praborrow-core = { path = "../praborrow-core", version = "0.1.0" }
+praborrow-defense = { path = "../praborrow-defense", version = "0.1.0" }
+praborrow-logistics = { path = "../praborrow-logistics", version = "0.1.0" }
+praborrow-diplomacy = { path = "../praborrow-diplomacy", version = "0.1.0" }
