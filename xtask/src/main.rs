@@ -73,6 +73,7 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
         "crates/praborrow-diplomacy",
         "crates/praborrow-sidl",
         "crates/praborrow-macros",
+        "crates/praborrow-prover",
     ];
 
     println!("{}", "🔄 Syncing submodules...".cyan().bold());

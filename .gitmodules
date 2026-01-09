@@ -19,3 +19,6 @@
 [submodule "crates/praborrow-macros"]
 	path = crates/praborrow-macros
 	url = https://github.com/ireddragonicy/praborrow-macros.git
+[submodule "crates/praborrow-prover"]
+	path = crates/praborrow-prover
+	url = https://github.com/ireddragonicy/praborrow-prover.git
