@@ -1,9 +1,0 @@
-[package]
-name = "praborrow-diplomacy"
-version.workspace = true
-edition.workspace = true
-description = "Stable ABI primitives for PraBorrow. Defines the Diplomat trait for safe FFI/inter-op interfaces."
-
-[dependencies]
-praborrow-sidl = { path = "../praborrow-sidl", version = "0.2.0" }
-
