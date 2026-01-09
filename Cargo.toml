@@ -9,6 +9,7 @@ members = [
     "crates/praborrow-macros",
     "crates/praborrow-prover",
     "crates/praborrow",
+    "xtask",
 ]
 resolver = "2"
 
