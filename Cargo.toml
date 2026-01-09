@@ -7,12 +7,13 @@ members = [
     "crates/praborrow-lease",
     "crates/praborrow-sidl",
     "crates/praborrow-macros",
+    "crates/praborrow-prover",
     "crates/praborrow",
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 authors = ["ireddragonicy"]
 license = "MIT"
