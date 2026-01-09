@@ -1,0 +1,18 @@
+[package]
+name = "praborrow-logistics"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description = "Zero-copy data abstraction layer for the Hilirisasi pipeline. Handles raw byte stream refinement without allocation overhead."
+license.workspace = true
+repository.workspace = true
+documentation = "https://docs.rs/praborrow-logistics"
+readme = "README.md"
+keywords = ["zero-copy", "buffer", "networking", "unsafe"]
+categories = ["memory-management", "network-programming"]
+
+[dependencies]
+praborrow-core = { path = "../praborrow-core", version = "0.2.0" }
+tokio = { version = "1.0", features = ["full"] }
+bytes = "1.0"
+async-trait = "0.1.89"
