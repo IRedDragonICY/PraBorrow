@@ -10,9 +10,6 @@
 [submodule "crates/praborrow-diplomacy"]
 	path = crates/praborrow-diplomacy
 	url = https://github.com/ireddragonicy/praborrow-diplomacy.git
-[submodule "crates/praborrow"]
-	path = crates/praborrow
-	url = https://github.com/ireddragonicy/praborrow.git
 [submodule "crates/praborrow-lease"]
 	path = crates/praborrow-lease
 	url = https://github.com/ireddragonicy/praborrow-lease.git
