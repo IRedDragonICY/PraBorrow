@@ -1,3 +1,5 @@
+![PraBorrow Banner](banner.png)
+
 # PraBorrow
 
 **High-Performance Distributed Systems Framework**

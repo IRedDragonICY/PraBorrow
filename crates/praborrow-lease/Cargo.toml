@@ -1,0 +1,8 @@
+[package]
+name = "praborrow-lease"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+praborrow-core = { path = "../praborrow-core", version = "0.2.0" }
+serde = { version = "1.0", features = ["derive"] }
