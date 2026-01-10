@@ -75,6 +75,20 @@ z3 = "0.19.7"
 # Lazy initialization
 lazy_static = "1.4"
 
+# gRPC
+tonic = "0.13"
+prost = "0.13"
+
+# TLS
+rustls = "0.23"
+tokio-rustls = "0.26"
+
+# Observability
+prometheus = "0.13"
+
+# Random
+rand = "0.9"
+
 # ============================================================================
 # BUILD PROFILES
 # ============================================================================
