@@ -1,4 +1,4 @@
-//! PraBorrow - A distributed systems framework for Rust.
+//! `PraBorrow` - A distributed systems framework for Rust.
 //!
 //! Re-exports all sub-crates for convenient access:
 //! - `core`: Distributed ownership primitives (`Sovereign<T>`)
@@ -51,7 +51,7 @@ pub use praborrow_prover as prover;
 #[doc(inline)]
 pub use praborrow_sidl as sidl;
 
-/// Common imports for quick access to PraBorrow functionality.
+/// Common imports for quick access to `PraBorrow` functionality.
 ///
 /// # Usage
 ///
