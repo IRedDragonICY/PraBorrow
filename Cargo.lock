@@ -1232,7 +1232,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "criterion",
  "praborrow-core",
@@ -1248,7 +1248,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "serde",
  "thiserror",
@@ -1257,7 +1257,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-defense"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "praborrow-core",
  "praborrow-prover",
@@ -1270,14 +1270,14 @@ dependencies = [
 
 [[package]]
 name = "praborrow-diplomacy"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "tracing",
 ]
 
 [[package]]
 name = "praborrow-lease"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1293,7 +1293,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-logistics"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "praborrow-core",
  "serde",
@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-macros"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1311,7 +1311,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-prover"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "lazy_static",
  "lru",
@@ -1324,7 +1324,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-sidl"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1984,19 +1984,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
  "pin-project-lite",
- "tracing-attributes",
  "tracing-core",
-]
-
-[[package]]
-name = "tracing-attributes"
-version = "0.1.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]

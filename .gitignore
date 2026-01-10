@@ -1,4 +1,7 @@
 _git_source/
+.idea/
+.vscode/
+*.ds_store
 target/
 **/*.rs.bk
 

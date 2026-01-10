@@ -10,21 +10,30 @@ description = "The PraBorrow framework - A distributed systems framework for Rus
 keywords = ["distributed", "borrow-checking", "systems", "framework"]
 categories = ["development-tools", "data-structures"]
 
+[features]
+default = ["std", "full"]
+full = ["diplomacy", "prover", "sidl"]
+diplomacy = ["dep:praborrow-diplomacy"]
+prover = ["dep:praborrow-prover"]
+sidl = ["dep:praborrow-sidl"]
+std = []
+
 [dependencies]
-praborrow-core = { path = "../praborrow-core", version = "0.5.0" }
-praborrow-defense = { path = "../praborrow-defense", version = "0.5.0" }
-praborrow-logistics = { path = "../praborrow-logistics", version = "0.5.0" }
-praborrow-diplomacy = { path = "../praborrow-diplomacy", version = "0.5.0" }
-praborrow-lease = { path = "../praborrow-lease", version = "0.5.0" }
-praborrow-sidl = { path = "../praborrow-sidl", version = "0.5.0" }
-praborrow-macros = { path = "../praborrow-macros", version = "0.5.0" }
-praborrow-prover = { path = "../praborrow-prover", version = "0.5.0" }
+praborrow-core = { workspace = true }
+praborrow-defense = { workspace = true }
+praborrow-logistics = { workspace = true }
+praborrow-lease = { workspace = true }
+praborrow-macros = { workspace = true }
+
+# Optional heavy dependencies
+praborrow-diplomacy = { workspace = true, optional = true }
+praborrow-prover = { workspace = true, optional = true }
+praborrow-sidl = { workspace = true, optional = true }
 
 [dev-dependencies]
-criterion = "0.5"
-sha2 = "0.10"
+criterion = { workspace = true }
+sha2 = { workspace = true }
 
 [[bench]]
 name = "constitution_bench"
 harness = false
-

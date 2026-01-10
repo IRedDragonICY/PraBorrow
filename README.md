@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(data.is_domestic());
     
     // 5. Annex (Move to remote)
-    data.annex().expect("Annexation failed");
+    data.annex()?; // Propagate errors, do not panic
     assert!(data.is_exiled());
     
     // 6. Graceful error instead of panic
