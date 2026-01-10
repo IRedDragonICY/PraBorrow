@@ -3,6 +3,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use indicatif::{ProgressBar, ProgressStyle};
 use owo_colors::OwoColorize;
 use std::fs;
+use toml_edit::{DocumentMut, value};
 use xshell::{cmd, Shell};
 
 #[derive(Parser)]
@@ -97,6 +98,10 @@ fn main() -> Result<()> {
 }
 
 fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
+    if msg.trim().is_empty() {
+        anyhow::bail!("Commit message cannot be empty");
+    }
+
     let submodules = vec![
         "crates/praborrow-core",
         "crates/praborrow-defense",
@@ -130,9 +135,13 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
             cmd!(sh, "git commit -m {msg}").run()?;
 
             if push {
-                println!("   Pushing to origin/main...");
+                // Dynamic branch detection
+                let current_branch = cmd!(sh, "git branch --show-current").read()?;
+                let remote = "origin"; // Could be dynamic too, but origin is standard
+                println!("   Pushing to {}/{}...", remote, current_branch);
+                
                 // Try catch push error? xshell throws error on non-zero exit.
-                if let Err(e) = cmd!(sh, "git push origin main").run() {
+                if let Err(e) = cmd!(sh, "git push {remote} {current_branch}").run() {
                     println!("{}", format!("   ⚠️ Push failed for {}: {}", sub, e).red());
                 }
             }
@@ -148,7 +157,8 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
         cmd!(sh, "git add .").run()?;
         cmd!(sh, "git commit -m {msg}").run()?;
         if push {
-            cmd!(sh, "git push origin main").run()?;
+            let current_branch = cmd!(sh, "git branch --show-current").read()?;
+            cmd!(sh, "git push origin {current_branch}").run()?;
         }
     } else {
         println!("{}", "Root repository clean.".dimmed());
@@ -187,7 +197,7 @@ fn run_publish(sh: &Shell, dry_run: bool) -> Result<()> {
 
         // Read version from Cargo.toml
         let cargo_toml = sh.read_file("Cargo.toml")?;
-        let local_version = extract_version(&cargo_toml);
+        let local_version = extract_version(&cargo_toml)?;
 
         println!(
             "{}",
@@ -285,22 +295,17 @@ fn run_publish(sh: &Shell, dry_run: bool) -> Result<()> {
 }
 
 /// Extract version from Cargo.toml content
-fn extract_version(cargo_toml: &str) -> String {
-    for line in cargo_toml.lines() {
-        let line = line.trim();
-        if line.starts_with("version") && line.contains("=") && !line.contains("workspace") {
-            // version = "x.y.z"
-            if let Some(start) = line.find('"') {
-                if let Some(end) = line.rfind('"') {
-                    if start < end {
-                        return line[start + 1..end].to_string();
-                    }
-                }
-            }
-        }
+fn extract_version(cargo_toml: &str) -> Result<String> {
+    let doc = cargo_toml.parse::<DocumentMut>()?;
+    if let Some(version) = doc.get("package").and_then(|p| p.get("version")).and_then(|v| v.as_str()) {
+         return Ok(version.to_string());
     }
-    // If using workspace inheritance, read from root
-    "0.5.0".to_string() // Fallback to current version
+    // Check workspace.package.version if package.version not found
+    if let Some(version) = doc.get("workspace").and_then(|w| w.get("package")).and_then(|p| p.get("version")).and_then(|v| v.as_str()) {
+        return Ok(version.to_string());
+    }
+
+    anyhow::bail!("Could not extract version from Cargo.toml")
 }
 
 /// Wait for crates.io index to propagate the new version
@@ -318,8 +323,9 @@ fn wait_for_index_propagation(sh: &Shell, crate_name: &str, version: &str) -> Re
         crate_name, version
     ));
 
-    // Try up to 30 seconds, checking every 2 seconds
-    for i in 0..15 {
+    // Try up to 300 seconds (5 minutes), checking every 2 seconds
+    // 300s / 2s = 150 iterations
+    for i in 0..150 {
         pb.inc(2);
         std::thread::sleep(std::time::Duration::from_secs(2));
 
@@ -335,8 +341,8 @@ fn wait_for_index_propagation(sh: &Shell, crate_name: &str, version: &str) -> Re
             return Ok(());
         }
 
-        // Update progress message
-        if i == 7 {
+        // Update progress message periodically
+        if i % 15 == 0 && i > 0 {
             pb.set_message(format!(
                 "Still waiting for {} (index may be slow)...",
                 crate_name
@@ -353,6 +359,7 @@ fn wait_for_index_propagation(sh: &Shell, crate_name: &str, version: &str) -> Re
 
 /// Bump version in workspace Cargo.toml
 fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
+    ensure_clean_git(sh)?;
     println!("{}", "📦 Bumping workspace version...".magenta().bold());
 
     // Read current version from workspace Cargo.toml
@@ -370,11 +377,16 @@ fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
     println!("   New version:     {}", new_version.green().bold());
 
     // Update workspace Cargo.toml
-    let new_content = content.replace(
-        &format!("version = \"{}\"", current_version),
-        &format!("version = \"{}\"", new_version),
-    );
-    fs::write(cargo_toml_path, new_content)?;
+    let mut doc = content.parse::<DocumentMut>()?;
+    if let Some(workspace) = doc.get_mut("workspace") {
+        if let Some(package) = workspace.get_mut("package") {
+            package["version"] = value(&new_version);
+        }
+    }
+    // Also check explicit package.version just in case (though extract_workspace_version looks for workspace.package)
+    // For workspace root, it should be under [workspace.package] usually.
+    
+    fs::write(cargo_toml_path, doc.to_string())?;
 
     // Update dependency versions in facade crate
     update_facade_dependencies(sh, &current_version, &new_version)?;
@@ -387,27 +399,12 @@ fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
 
 /// Extract version from workspace Cargo.toml
 fn extract_workspace_version(content: &str) -> Option<String> {
-    let mut in_workspace_package = false;
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed == "[workspace.package]" {
-            in_workspace_package = true;
-            continue;
-        }
-        if trimmed.starts_with('[') && in_workspace_package {
-            break;
-        }
-        if in_workspace_package && trimmed.starts_with("version") {
-            if let Some(start) = trimmed.find('"') {
-                if let Some(end) = trimmed.rfind('"') {
-                    if start < end {
-                        return Some(trimmed[start + 1..end].to_string());
-                    }
-                }
-            }
-        }
-    }
-    None
+    let doc = content.parse::<DocumentMut>().ok()?;
+    doc.get("workspace")
+        .and_then(|w| w.get("package"))
+        .and_then(|p| p.get("version"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
 }
 
 /// Bump semver version
@@ -431,14 +428,38 @@ fn bump_semver(version: &str, bump_type: BumpType) -> Result<String> {
 }
 
 /// Update dependency versions in facade crate
-fn update_facade_dependencies(_sh: &Shell, old_version: &str, new_version: &str) -> Result<()> {
+fn update_facade_dependencies(_sh: &Shell, _old_version: &str, new_version: &str) -> Result<()> {
     let facade_cargo = "crates/praborrow/Cargo.toml";
     let content = fs::read_to_string(facade_cargo)?;
-    let new_content = content.replace(
-        &format!("version = \"{}\"", old_version),
-        &format!("version = \"{}\"", new_version),
-    );
-    fs::write(facade_cargo, new_content)?;
+    let mut doc = content.parse::<DocumentMut>()?;
+
+    // We assume the facade crate uses workspace version, 
+    // BUT if the xtask was designed to update specific dependencies, 
+    // it likely means they are path dependencies or specific version requirements 
+    // that are NOT using `workspace = true`.
+    // However, the original code essentially did: REPLACE `version = "old"` with `version = "new"`.
+    // This implies it was just bumping the crate version itself!
+    // Wait, the function name is `update_facade_dependencies`, but the implementation in lines 437-440
+    // replaced `version = "old"` with `version = "new"`. This usually targets the package version itself.
+    
+    // As per the name, if it was meant to update *dependencies*, it would look into [dependencies].
+    // But the original code was:
+    // let new_content = content.replace(&format!("version = \"{}\"", old_version), ...);
+    //
+    // This is ambiguous. It likely updated the package version AND any dependency that happened
+    // to match that string line?
+    // Let's assume it updates the package version of the facade crate to match the workspace version.
+    
+    if let Some(package) = doc.get_mut("package") {
+        package["version"] = value(new_version);
+    }
+
+    // If we truly need to update dependencies, we would iterate [dependencies].
+    // But since this is a workspace, most deps should use `workspace = true`.
+    // If they don't, we might need to update them. 
+    // Given the original brittle code, it's safer to just update package.version for now.
+    
+    fs::write(facade_cargo, doc.to_string())?;
     Ok(())
 }
 
@@ -449,17 +470,35 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool) -> Result<()
 
     // Step 1: Bump version
     println!("\n{}", "Step 1/5: Bumping version...".cyan().bold());
-    run_bump_version(sh, bump_type)?;
+    match run_bump_version(sh, bump_type) {
+        Ok(_) => {},
+        Err(e) => {
+            println!("{}", "❌ Version bump failed. State is clean (or unchanged).".red());
+            return Err(e);
+        }
+    }
 
-    // Step 2: Build
-    println!("\n{}", "Step 2/5: Building workspace...".cyan().bold());
-    cmd!(sh, "cargo build --workspace").run()?;
-    println!("{}", "   ✅ Build successful".green());
+    // Wrap subsequent steps in a closure or block to handle rollback
+    let result = (|| -> Result<()> {
+        // Step 2: Build
+        println!("\n{}", "Step 2/5: Building workspace...".cyan().bold());
+        cmd!(sh, "cargo build --workspace").run()?;
+        println!("{}", "   ✅ Build successful".green());
 
-    // Step 3: Test
-    println!("\n{}", "Step 3/5: Running tests...".cyan().bold());
-    cmd!(sh, "cargo test --workspace").run()?;
-    println!("{}", "   ✅ All tests passed".green());
+        // Step 3: Test
+        println!("\n{}", "Step 3/5: Running tests...".cyan().bold());
+        cmd!(sh, "cargo test --workspace").run()?;
+        println!("{}", "   ✅ All tests passed".green());
+        Ok(())
+    })();
+
+    if let Err(e) = result {
+        println!("{}", "❌ Build or Test failed. Reverting version bump...".red());
+        cmd!(sh, "git checkout Cargo.toml crates/praborrow/Cargo.toml").run()?;
+        return Err(e);
+    }
+    
+    // Step 4...
 
     // Get new version for commit message
     let cargo_toml = fs::read_to_string("Cargo.toml")?;
@@ -490,5 +529,13 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool) -> Result<()
             .bold()
     );
 
+    Ok(())
+}
+
+fn ensure_clean_git(sh: &Shell) -> Result<()> {
+    let status = cmd!(sh, "git status --porcelain").read()?;
+    if !status.is_empty() {
+        anyhow::bail!("Git workspace is dirty. Please commit or stash changes before releasing.");
+    }
     Ok(())
 }

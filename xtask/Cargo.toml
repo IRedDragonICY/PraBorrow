@@ -10,3 +10,4 @@ xshell = "0.2"
 anyhow = "1.0"
 owo-colors = "4.2" # Make it look expert with colors
 indicatif = "0.18.3"
+toml_edit = "0.22"

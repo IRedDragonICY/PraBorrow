@@ -39,6 +39,16 @@ jobs:
       - name: Run cargo check
         run: cargo check --workspace --all-features
 
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+      - name: Run audit
+        run: cargo audit
+
   test:
     name: Test Suite
     runs-on: ubuntu-latest
