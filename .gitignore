@@ -1,3 +1,6 @@
 _git_source/
 target/
 **/*.rs.bk
+
+# Logs
+*.log

@@ -5,8 +5,8 @@ edition = "2021"
 publish = false
 
 [dependencies]
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 xshell = "0.2"
 anyhow = "1.0"
-owo-colors = "3.5" # Make it look expert with colors
+owo-colors = "4.2" # Make it look expert with colors
 indicatif = "0.18.3"

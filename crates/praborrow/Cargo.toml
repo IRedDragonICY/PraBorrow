@@ -1,0 +1,30 @@
+[package]
+name = "praborrow"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "The PraBorrow framework - A distributed systems framework for Rust"
+keywords = ["distributed", "borrow-checking", "systems", "framework"]
+categories = ["development-tools", "data-structures"]
+
+[dependencies]
+praborrow-core = { path = "../praborrow-core", version = "0.5.0" }
+praborrow-defense = { path = "../praborrow-defense", version = "0.5.0" }
+praborrow-logistics = { path = "../praborrow-logistics", version = "0.5.0" }
+praborrow-diplomacy = { path = "../praborrow-diplomacy", version = "0.5.0" }
+praborrow-lease = { path = "../praborrow-lease", version = "0.5.0" }
+praborrow-sidl = { path = "../praborrow-sidl", version = "0.5.0" }
+praborrow-macros = { path = "../praborrow-macros", version = "0.5.0" }
+praborrow-prover = { path = "../praborrow-prover", version = "0.5.0" }
+
+[dev-dependencies]
+criterion = "0.5"
+sha2 = "0.10"
+
+[[bench]]
+name = "constitution_bench"
+harness = false
+
