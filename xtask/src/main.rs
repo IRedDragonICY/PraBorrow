@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use xshell::{cmd, Shell};
 use anyhow::Result;
 use owo_colors::OwoColorize;
+use indicatif::{ProgressBar, ProgressStyle};
 
 #[derive(Parser)]
 #[command(name = "xtask")]
@@ -165,8 +166,17 @@ fn run_publish(sh: &Shell, dry_run: bool) -> Result<()> {
         } else {
              println!("{}", format!("✅ Published {}", crate_name).green());
              if !dry_run {
-                 println!("   Waiting 15s for index propagation...");
-                 std::thread::sleep(std::time::Duration::from_secs(15));
+                 let pb = ProgressBar::new(15);
+                 pb.set_style(ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {msg}")
+                    .unwrap()
+                    .progress_chars("#>-"));
+                 pb.set_message("Waiting for index propagation...");
+                 
+                 for _ in 0..15 {
+                     pb.inc(1);
+                     std::thread::sleep(std::time::Duration::from_secs(1));
+                 }
+                 pb.finish_with_message("Propagation wait complete");
              }
         }
     }

@@ -9,3 +9,4 @@ clap = { version = "4.4", features = ["derive"] }
 xshell = "0.2"
 anyhow = "1.0"
 owo-colors = "3.5" # Make it look expert with colors
+indicatif = "0.18.3"
