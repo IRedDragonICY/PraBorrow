@@ -1,8 +1,9 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use xshell::{cmd, Shell};
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::fs;
 
 #[derive(Parser)]
 #[command(name = "xtask")]
@@ -35,6 +36,31 @@ enum Commands {
     },
     /// Run all verification steps (build + test)
     Verify,
+    /// Bump version across all workspace crates
+    BumpVersion {
+        /// Version bump type
+        #[arg(value_enum)]
+        bump_type: BumpType,
+    },
+    /// Full release workflow: bump, build, test, commit, publish
+    Release {
+        /// Version bump type
+        #[arg(value_enum)]
+        bump_type: BumpType,
+        /// Skip publish step
+        #[arg(long)]
+        skip_publish: bool,
+    },
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum BumpType {
+    /// Increment patch version (0.5.0 -> 0.5.1)
+    Patch,
+    /// Increment minor version (0.5.0 -> 0.6.0)
+    Minor,
+    /// Increment major version (0.5.0 -> 1.0.0)
+    Major,
 }
 
 fn main() -> Result<()> {
@@ -60,6 +86,8 @@ fn main() -> Result<()> {
         }
         Commands::GitSync { message, push } => run_git_sync(&sh, &message, push)?,
         Commands::Publish { dry_run } => run_publish(&sh, dry_run)?,
+        Commands::BumpVersion { bump_type } => run_bump_version(&sh, bump_type)?,
+        Commands::Release { bump_type, skip_publish } => run_release(&sh, bump_type, skip_publish)?,
     }
 
     Ok(())
@@ -266,5 +294,138 @@ fn wait_for_index_propagation(sh: &Shell, crate_name: &str, version: &str) -> Re
     }
     
     pb.finish_with_message(format!("Timeout - {} may take longer to appear", crate_name));
+    Ok(())
+}
+
+/// Bump version in workspace Cargo.toml
+fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
+    println!("{}", "📦 Bumping workspace version...".magenta().bold());
+    
+    // Read current version from workspace Cargo.toml
+    let cargo_toml_path = "Cargo.toml";
+    let content = fs::read_to_string(cargo_toml_path)?;
+    
+    let current_version = extract_workspace_version(&content)
+        .ok_or_else(|| anyhow::anyhow!("Could not find version in workspace Cargo.toml"))?;
+    
+    println!("   Current version: {}", current_version.cyan());
+    
+    // Parse and bump version
+    let new_version = bump_semver(&current_version, bump_type)?;
+    
+    println!("   New version:     {}", new_version.green().bold());
+    
+    // Update workspace Cargo.toml
+    let new_content = content.replace(
+        &format!("version = \"{}\"", current_version),
+        &format!("version = \"{}\"", new_version)
+    );
+    fs::write(cargo_toml_path, new_content)?;
+    
+    // Update dependency versions in facade crate
+    update_facade_dependencies(sh, &current_version, &new_version)?;
+    
+    println!("{}", "✅ Version bumped successfully!".green().bold());
+    println!("   Run `cargo xtask verify` to ensure everything builds.");
+    
+    Ok(())
+}
+
+/// Extract version from workspace Cargo.toml
+fn extract_workspace_version(content: &str) -> Option<String> {
+    let mut in_workspace_package = false;
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed == "[workspace.package]" {
+            in_workspace_package = true;
+            continue;
+        }
+        if trimmed.starts_with('[') && in_workspace_package {
+            break;
+        }
+        if in_workspace_package && trimmed.starts_with("version") {
+            if let Some(start) = trimmed.find('"') {
+                if let Some(end) = trimmed.rfind('"') {
+                    if start < end {
+                        return Some(trimmed[start+1..end].to_string());
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Bump semver version
+fn bump_semver(version: &str, bump_type: BumpType) -> Result<String> {
+    let parts: Vec<&str> = version.split('.').collect();
+    if parts.len() != 3 {
+        anyhow::bail!("Invalid semver: {}", version);
+    }
+    
+    let major: u32 = parts[0].parse()?;
+    let minor: u32 = parts[1].parse()?;
+    let patch: u32 = parts[2].parse()?;
+    
+    let (new_major, new_minor, new_patch) = match bump_type {
+        BumpType::Major => (major + 1, 0, 0),
+        BumpType::Minor => (major, minor + 1, 0),
+        BumpType::Patch => (major, minor, patch + 1),
+    };
+    
+    Ok(format!("{}.{}.{}", new_major, new_minor, new_patch))
+}
+
+/// Update dependency versions in facade crate
+fn update_facade_dependencies(_sh: &Shell, old_version: &str, new_version: &str) -> Result<()> {
+    let facade_cargo = "crates/praborrow/Cargo.toml";
+    let content = fs::read_to_string(facade_cargo)?;
+    let new_content = content.replace(
+        &format!("version = \"{}\"", old_version),
+        &format!("version = \"{}\"", new_version)
+    );
+    fs::write(facade_cargo, new_content)?;
+    Ok(())
+}
+
+/// Full release workflow
+fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool) -> Result<()> {
+    println!("{}", "🚀 Starting Release Workflow...".magenta().bold());
+    println!("{}", "═".repeat(50).dimmed());
+    
+    // Step 1: Bump version
+    println!("\n{}", "Step 1/5: Bumping version...".cyan().bold());
+    run_bump_version(sh, bump_type)?;
+    
+    // Step 2: Build
+    println!("\n{}", "Step 2/5: Building workspace...".cyan().bold());
+    cmd!(sh, "cargo build --workspace").run()?;
+    println!("{}", "   ✅ Build successful".green());
+    
+    // Step 3: Test
+    println!("\n{}", "Step 3/5: Running tests...".cyan().bold());
+    cmd!(sh, "cargo test --workspace").run()?;
+    println!("{}", "   ✅ All tests passed".green());
+    
+    // Get new version for commit message
+    let cargo_toml = fs::read_to_string("Cargo.toml")?;
+    let new_version = extract_workspace_version(&cargo_toml).unwrap_or_else(|| "unknown".to_string());
+    
+    // Step 4: Commit and push
+    println!("\n{}", "Step 4/5: Committing changes...".cyan().bold());
+    let commit_msg = format!("release: v{}", new_version);
+    run_git_sync(sh, &commit_msg, true)?;
+    
+    // Step 5: Publish (optional)
+    if skip_publish {
+        println!("\n{}", "Step 5/5: Skipping publish (--skip-publish)".yellow());
+    } else {
+        println!("\n{}", "Step 5/5: Publishing to crates.io...".cyan().bold());
+        run_publish(sh, false)?;
+    }
+    
+    println!("\n{}", "═".repeat(50).dimmed());
+    println!("{}", format!("🎉 Release v{} complete!", new_version).magenta().bold());
+    
     Ok(())
 }
