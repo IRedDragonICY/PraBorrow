@@ -1281,6 +1281,7 @@ version = "0.6.0"
 dependencies = [
  "async-trait",
  "bincode",
+ "crc32fast",
  "futures",
  "praborrow-core",
  "serde",
