@@ -9,14 +9,25 @@
 
 PraBorrow enforces "Memory safety with sovereign integrity" by combining strict ownership semantics, procedural invariant checking, and zero-copy logistics into a unified framework.
 
-## What's New in v0.5.0
+## What's New in v0.6.0
 
-- **Non-Panicking API**: `try_get()` and `try_get_mut()` for graceful error handling
-- **LRU Prover Cache**: Bounded cache (10k entries) prevents memory leaks in long-running nodes
-- **Raft Storage Abstraction**: Swappable storage backends via `RaftStorage` trait
-- **Modernized Macros**: Direct expression parsing with `syn::Expr` (compile-time validation)
-- **UDP Supervisor**: Auto-restart on network thread panics
-- **RFC: Deadlock Detection**: Wait-For Graph design for distributed deadlock detection
+### Safety Overhaul
+- **Zero Library Panics**: All critical paths now return `Result` types
+- **Memory Leak Fix**: `RawResource` now properly deallocates via `Drop` implementation
+- **Input Validation**: Empty buffers, zero-duration leases, and invalid addresses are caught early
+
+### API Improvements  
+- **Non-Panicking `enforce_law()`**: Returns `Result<(), String>` instead of panicking
+- **New Sovereign Methods**: `new_exiled()`, `is_domestic()`, `is_exiled()`, `repatriate()`
+- **Configurable Networks**: `NetworkConfig` for buffer size and timeouts
+
+### Observability
+- **Structured Logging**: Full `tracing` integration across all crates
+- **Prover Warnings**: Stub backend now warns when Z3 is disabled
+
+### Infrastructure
+- **Injectable Storage**: `RaftNode::new()` accepts pluggable storage backends
+- **UDP Safety**: Exponential backoff, read timeouts, packet size validation
 
 ## Architecture
 
@@ -37,15 +48,14 @@ The framework is modularized into specialized crates:
 
 ```toml
 [dependencies]
-praborrow = "0.5.0"
+praborrow = "0.6.0"
 ```
 
 ## Quick Start
 
 ```rust
-use praborrow::core::{Sovereign, SovereigntyError};
+use praborrow::core::{Sovereign, SovereigntyError, CheckProtocol};
 use praborrow::defense::Constitution;
-use praborrow::core::CheckProtocol;
 
 #[derive(Constitution)]
 struct FiscalData {
@@ -53,21 +63,25 @@ struct FiscalData {
     value: i32,
 }
 
-fn main() -> Result<(), SovereigntyError> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Establish Sovereign Data
     let data = Sovereign::new(FiscalData { value: 100 });
     
-    // 2. Enforce Constitution
-    data.enforce_law();
+    // 2. Enforce Constitution (now returns Result!)
+    data.enforce_law()?;
     
     // 3. Safe access with error handling
     let value = data.try_get()?;
     println!("Value: {}", value.value);
     
-    // 4. Annex (Move to remote)
-    data.annex().expect("Annexation failed");
+    // 4. Check state with helper methods
+    assert!(data.is_domestic());
     
-    // 5. Graceful error instead of panic
+    // 5. Annex (Move to remote)
+    data.annex().expect("Annexation failed");
+    assert!(data.is_exiled());
+    
+    // 6. Graceful error instead of panic
     match data.try_get() {
         Ok(_) => unreachable!(),
         Err(SovereigntyError::ForeignJurisdiction) => {
@@ -83,10 +97,13 @@ fn main() -> Result<(), SovereigntyError> {
 
 - **Zero Panics in Library Code**: All critical paths return `Result` types
 - **SAFETY Comments**: Every `unsafe` block is documented
-- **Strictly Typed Errors**: No string-based errors
+- **Strictly Typed Errors**: No string-based errors in public API
 - **Bounded Caches**: LRU strategy prevents unbounded memory growth
+- **Memory Safety**: `RawResource` properly deallocates with `Drop`
+- **Input Validation**: Invalid inputs are rejected early with clear errors
 
 ## License
 
 MIT
+
 

@@ -1,0 +1,11 @@
+    Checking praborrow-defense v0.5.0 (D:\Project\PraBorrow\crates\praborrow-defense)
+error[E0609]: no field `val` on type `&FieldProvider<'a>`
+ --> crates\praborrow-defense\tests\no_panic_test.rs:7:5
+  |
+7 |     val: i32,
+  |     ^^^ unknown field
+  |
+  = note: available field is: `0`
+
+For more information about this error, try `rustc --explain E0609`.
+error: could not compile `praborrow-defense` (test "no_panic_test") due to 1 previous error
