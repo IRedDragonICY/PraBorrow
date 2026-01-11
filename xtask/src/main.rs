@@ -191,13 +191,17 @@ fn run_publish(sh: &Shell, dry_run: bool) -> Result<()> {
     let mut skipped = 0;
     let mut failed = 0;
 
+    // Get workspace version for inheritance
+    let root_cargo = sh.read_file("Cargo.toml")?;
+    let workspace_version = extract_workspace_version(&root_cargo);
+
     for crate_path in &order {
         let _guard = sh.push_dir(crate_path);
         let crate_name = crate_path.split('/').next_back().unwrap();
 
         // Read version from Cargo.toml
         let cargo_toml = sh.read_file("Cargo.toml")?;
-        let local_version = extract_version(&cargo_toml)?;
+        let local_version = extract_version(&cargo_toml, workspace_version.as_deref())?;
 
         println!(
             "{}",
@@ -295,17 +299,35 @@ fn run_publish(sh: &Shell, dry_run: bool) -> Result<()> {
 }
 
 /// Extract version from Cargo.toml content
-fn extract_version(cargo_toml: &str) -> Result<String> {
+fn extract_version(cargo_toml: &str, workspace_version: Option<&str>) -> Result<String> {
     let doc = cargo_toml.parse::<DocumentMut>()?;
-    if let Some(version) = doc.get("package").and_then(|p| p.get("version")).and_then(|v| v.as_str()) {
-         return Ok(version.to_string());
+    
+    if let Some(package) = doc.get("package") {
+        if let Some(version) = package.get("version") {
+             if let Some(v_str) = version.as_str() {
+                 return Ok(v_str.to_string());
+             }
+             // Handle { workspace = true }
+             let is_workspace = if let Some(table) = version.as_inline_table() {
+                 table.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false)
+             } else if let Some(table) = version.as_table() {
+                 table.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false)
+             } else {
+                 false
+             };
+
+             if is_workspace && workspace_version.is_some() {
+                 return Ok(workspace_version.unwrap().to_string());
+             }
+        }
     }
-    // Check workspace.package.version if package.version not found
+
+    // Check workspace.package.version (fallback if we are looking at root)
     if let Some(version) = doc.get("workspace").and_then(|w| w.get("package")).and_then(|p| p.get("version")).and_then(|v| v.as_str()) {
         return Ok(version.to_string());
     }
 
-    anyhow::bail!("Could not extract version from Cargo.toml")
+    anyhow::bail!("Could not extract version from Cargo.toml (checked package.version and workspace inheritance)")
 }
 
 /// Wait for crates.io index to propagate the new version
