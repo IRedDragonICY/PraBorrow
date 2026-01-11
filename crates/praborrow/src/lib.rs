@@ -51,6 +51,12 @@ pub use praborrow_prover as prover;
 #[doc(inline)]
 pub use praborrow_sidl as sidl;
 
+pub mod error;
+pub use error::PraBorrowError;
+
+#[cfg(feature = "std")]
+pub mod telemetry;
+
 /// Common imports for quick access to `PraBorrow` functionality.
 ///
 /// # Usage
@@ -61,4 +67,5 @@ pub use praborrow_sidl as sidl;
 pub mod prelude {
     pub use praborrow_core::{CheckProtocol, Sovereign};
     pub use praborrow_defense::Constitution;
+    pub use crate::PraBorrowError;
 }

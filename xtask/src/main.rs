@@ -316,8 +316,10 @@ fn extract_version(cargo_toml: &str, workspace_version: Option<&str>) -> Result<
                  false
              };
 
-             if is_workspace && workspace_version.is_some() {
-                 return Ok(workspace_version.unwrap().to_string());
+             if is_workspace {
+                 if let Some(ver) = workspace_version {
+                     return Ok(ver.to_string());
+                 }
              }
         }
     }

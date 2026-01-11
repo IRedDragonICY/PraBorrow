@@ -24,6 +24,12 @@ praborrow-defense = { workspace = true }
 praborrow-logistics = { workspace = true }
 praborrow-lease = { workspace = true }
 praborrow-macros = { workspace = true }
+thiserror = { workspace = true }
+opentelemetry = "0.21"
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry-otlp = "0.14"
+tracing-opentelemetry = "0.22"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Optional heavy dependencies
 praborrow-diplomacy = { workspace = true, optional = true }
