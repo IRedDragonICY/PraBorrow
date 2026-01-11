@@ -1475,7 +1475,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "criterion",
  "praborrow-core",
@@ -1491,7 +1491,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-core"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "serde",
  "thiserror 2.0.17",
@@ -1500,7 +1500,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-defense"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "praborrow-core",
  "praborrow-prover",
@@ -1513,14 +1513,14 @@ dependencies = [
 
 [[package]]
 name = "praborrow-diplomacy"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "tracing",
 ]
 
 [[package]]
 name = "praborrow-lease"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "async-trait",
  "bincode",
@@ -1544,7 +1544,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-logistics"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "praborrow-core",
  "serde",
@@ -1553,7 +1553,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-macros"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1562,7 +1562,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-prover"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "lazy_static",
  "lru",
@@ -1575,7 +1575,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-sidl"
-version = "0.7.0"
+version = "0.7.1"
 dependencies = [
  "proc-macro2",
  "quote",
