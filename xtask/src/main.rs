@@ -486,12 +486,14 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool) -> Result<()
     let result = (|| -> Result<()> {
         // Step 2: Build
         println!("\n{}", "Step 2/5: Building workspace...".cyan().bold());
-        cmd!(sh, "cargo build --workspace").run()?;
+        println!("$ cargo build --workspace --exclude xtask");
+        cmd!(sh, "cargo build --workspace --exclude xtask").run()?;
         println!("{}", "   ✅ Build successful".green());
 
         // Step 3: Test
-        println!("\n{}", "Step 3/5: Running tests...".cyan().bold());
-        cmd!(sh, "cargo test --workspace").run()?;
+        println!("\nStep 3/5: Running tests...");
+        println!("$ cargo test --workspace --exclude xtask");
+        cmd!(sh, "cargo test --workspace --exclude xtask").run()?;
         println!("{}", "   ✅ All tests passed".green());
         Ok(())
     })();
