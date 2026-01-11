@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use indicatif::{ProgressBar, ProgressStyle};
 use owo_colors::OwoColorize;
 use std::fs;
-use toml_edit::{DocumentMut, value};
+use toml_edit::{DocumentMut, value, Value};
 use xshell::{cmd, Shell};
 
 #[derive(Parser)]
@@ -383,13 +383,27 @@ fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
             package["version"] = value(&new_version);
         }
     }
-    // Also check explicit package.version just in case (though extract_workspace_version looks for workspace.package)
-    // For workspace root, it should be under [workspace.package] usually.
+
+    // Update workspace dependencies versions for praborrow-* crates
+    // This ensures that when we bump the version, all internal dependencies in the workspace
+    // are also updated to point to the new version.
+    if let Some(deps) = doc.get_mut("workspace").and_then(|w| w.get_mut("dependencies")).and_then(|d| d.as_table_mut()) {
+        for (key, item) in deps.iter_mut() {
+            if key.starts_with("praborrow") {
+                if let Some(table) = item.as_inline_table_mut() {
+                    if let Some(ver) = table.get_mut("version") {
+                         *ver = Value::from(new_version.as_str());
+                    }
+                } else if let Some(table) = item.as_table_mut() {
+                     if let Some(ver) = table.get_mut("version") {
+                         *ver = value(&new_version);
+                    }
+                }
+            }
+        }
+    }
     
     fs::write(cargo_toml_path, doc.to_string())?;
-
-    // Update dependency versions in facade crate
-    update_facade_dependencies(sh, &current_version, &new_version)?;
 
     println!("{}", "✅ Version bumped successfully!".green().bold());
     println!("   Run `cargo xtask verify` to ensure everything builds.");
@@ -427,41 +441,7 @@ fn bump_semver(version: &str, bump_type: BumpType) -> Result<String> {
     Ok(format!("{}.{}.{}", new_major, new_minor, new_patch))
 }
 
-/// Update dependency versions in facade crate
-fn update_facade_dependencies(_sh: &Shell, _old_version: &str, new_version: &str) -> Result<()> {
-    let facade_cargo = "crates/praborrow/Cargo.toml";
-    let content = fs::read_to_string(facade_cargo)?;
-    let mut doc = content.parse::<DocumentMut>()?;
 
-    // We assume the facade crate uses workspace version, 
-    // BUT if the xtask was designed to update specific dependencies, 
-    // it likely means they are path dependencies or specific version requirements 
-    // that are NOT using `workspace = true`.
-    // However, the original code essentially did: REPLACE `version = "old"` with `version = "new"`.
-    // This implies it was just bumping the crate version itself!
-    // Wait, the function name is `update_facade_dependencies`, but the implementation in lines 437-440
-    // replaced `version = "old"` with `version = "new"`. This usually targets the package version itself.
-    
-    // As per the name, if it was meant to update *dependencies*, it would look into [dependencies].
-    // But the original code was:
-    // let new_content = content.replace(&format!("version = \"{}\"", old_version), ...);
-    //
-    // This is ambiguous. It likely updated the package version AND any dependency that happened
-    // to match that string line?
-    // Let's assume it updates the package version of the facade crate to match the workspace version.
-    
-    if let Some(package) = doc.get_mut("package") {
-        package["version"] = value(new_version);
-    }
-
-    // If we truly need to update dependencies, we would iterate [dependencies].
-    // But since this is a workspace, most deps should use `workspace = true`.
-    // If they don't, we might need to update them. 
-    // Given the original brittle code, it's safer to just update package.version for now.
-    
-    fs::write(facade_cargo, doc.to_string())?;
-    Ok(())
-}
 
 /// Full release workflow
 fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool) -> Result<()> {
