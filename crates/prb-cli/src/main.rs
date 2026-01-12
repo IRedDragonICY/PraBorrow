@@ -70,6 +70,9 @@ struct App {
     tab_index: usize,
     should_quit: bool,
     logs: Vec<String>,
+    paused: bool,
+    filter_input: String,
+    is_typing: bool,
 }
 
 impl App {
@@ -82,6 +85,9 @@ impl App {
                 "System initialized".to_string(),
                 "Ready to inspect".to_string(),
             ],
+            paused: false,
+            filter_input: String::new(),
+            is_typing: false,
         }
     }
 }
@@ -95,14 +101,40 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
 
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('q') => {
-                        app.should_quit = true;
+                if app.is_typing {
+                    match key.code {
+                        KeyCode::Enter => app.is_typing = false,
+                        KeyCode::Esc => {
+                            app.is_typing = false;
+                            app.filter_input.clear();
+                        }
+                        KeyCode::Backspace => {
+                            app.filter_input.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            app.filter_input.push(c);
+                        }
+                        _ => {}
                     }
-                    KeyCode::Tab => {
-                        app.tab_index = (app.tab_index + 1) % 3;
+                } else {
+                    match key.code {
+                        KeyCode::Char('q') => {
+                            app.should_quit = true;
+                        }
+                        KeyCode::Tab => {
+                            app.tab_index = (app.tab_index + 1) % 3;
+                        }
+                        KeyCode::Char('p') => {
+                            app.paused = !app.paused;
+                        }
+                        KeyCode::Char('/') => {
+                            app.is_typing = true;
+                        }
+                        KeyCode::Esc => {
+                            app.filter_input.clear();
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
         }
@@ -129,7 +161,10 @@ fn ui(frame: &mut ratatui::Frame, app: &App) {
         Mode::Offline { path } => format!("Offline Mode: {:?}", path),
     };
 
-    let header = Paragraph::new(format!("PraBorrow Dashboard - {}", mode_str))
+    let status = if app.paused { "PAUSED" } else { "RUNNING" };
+    let header_text = format!("PraBorrow Dashboard - {} [{}]", mode_str, status);
+
+    let header = Paragraph::new(header_text)
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -171,7 +206,16 @@ fn ui(frame: &mut ratatui::Frame, app: &App) {
     }
 
     // Footer
-    let footer = Paragraph::new("Press 'q' to quit, 'Tab' to switch views")
+    // Footer
+    let footer_text = if app.is_typing {
+        format!("Filter: {}_", app.filter_input)
+    } else if !app.filter_input.is_empty() {
+        format!("Filter: {} (Press '/' to edit, 'Esc' to clear) | 'p' Pause | 'q' Quit", app.filter_input)
+    } else {
+        "Press '/' to filter, 'p' to pause, 'q' to quit, 'Tab' to switch views".to_string()
+    };
+
+    let footer = Paragraph::new(footer_text)
         .style(Style::default().fg(Color::Gray))
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(footer, chunks[2]);
@@ -195,6 +239,13 @@ fn render_log_explorer(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, 
     let items: Vec<ListItem> = app
         .logs
         .iter()
+        .filter(|log| {
+            if app.filter_input.is_empty() {
+                true
+            } else {
+                log.to_lowercase().contains(&app.filter_input.to_lowercase())
+            }
+        })
         .map(|log| ListItem::new(Line::from(Span::raw(log))))
         .collect();
 

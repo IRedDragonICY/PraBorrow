@@ -36,19 +36,19 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
-    /// Run all verification steps (build + test)
-    Verify,
+    /// Run pre-flight checks (audit, outdated, clean git)
+    PreFlight,
     /// Bump version across all workspace crates
     BumpVersion {
         /// Version bump type
         #[arg(value_enum)]
-        bump_type: BumpType,
+        bump_type: Option<BumpType>,
     },
     /// Full release workflow: bump, build, test, commit, publish
     Release {
         /// Version bump type
         #[arg(value_enum)]
-        bump_type: BumpType,
+        bump_type: Option<BumpType>,
         /// Skip publish step
         #[arg(long)]
         skip_publish: bool,
@@ -104,6 +104,7 @@ fn main() -> Result<()> {
 
             println!("{}", "✅ Verification complete".green().bold());
         }
+        Commands::PreFlight => run_preflight(&sh)?,
         Commands::GitSync { message, push } => run_git_sync(&sh, &message, push)?,
         Commands::Publish { dry_run } => publish::run_publish_parallel(&sh, dry_run)?,
         Commands::BumpVersion { bump_type } => run_bump_version(&sh, bump_type)?,
@@ -191,9 +192,52 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
     Ok(())
 }
 
-/// Bump version in workspace Cargo.toml
-fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
+fn run_preflight(sh: &Shell) -> Result<()> {
+    println!("{}", "🛫 Running Pre-Flight Checks...".cyan().bold());
+
+    // 1. Git Status
     ensure_clean_git(sh)?;
+    println!("{}", "✅ Git workspace is clean".green());
+
+    // 2. Build & Test
+    println!("{}", "🏗️ Building workspace...".dimmed());
+    cmd!(sh, "cargo build --workspace").run()?;
+    println!("{}", "✅ Build successful".green());
+
+    println!("{}", "🧪 Running tests...".dimmed());
+    cmd!(sh, "cargo test --workspace").run()?;
+    println!("{}", "✅ Tests passed".green());
+
+    // 3. Audit (if installed)
+    if cmd!(sh, "cargo audit --version").quiet().run().is_ok() {
+        println!("{}", "🔒 Running security audit...".dimmed());
+        cmd!(sh, "cargo audit").run()?;
+        println!("{}", "✅ Security audit passed".green());
+    } else {
+        println!("{}", "⚠️  cargo-audit skipped (not installed)".yellow());
+    }
+
+    println!("\n{}", "🎉 Pre-flight checks passed! Ready for takeoff.".green().bold());
+    Ok(())
+}
+
+/// Bump version in workspace Cargo.toml
+fn run_bump_version(sh: &Shell, bump_type: Option<BumpType>) -> Result<()> {
+    ensure_clean_git(sh)?;
+    
+    let bump_type = match bump_type {
+        Some(t) => t,
+        None => {
+            let selections = &[BumpType::Patch, BumpType::Minor, BumpType::Major];
+            let selection = dialoguer::Select::new()
+                .with_prompt("Select version bump type")
+                .items(&["Patch", "Minor", "Major"])
+                .default(0)
+                .interact()?;
+            selections[selection]
+        }
+    };
+
     println!("{}", "📦 Bumping workspace version...".magenta().bold());
 
     // Read current version from workspace Cargo.toml
@@ -280,7 +324,7 @@ fn bump_semver(version: &str, bump_type: BumpType) -> Result<String> {
 }
 
 /// Full release workflow
-fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool, dry_run: bool) -> Result<()> {
+fn run_release(sh: &Shell, bump_type: Option<BumpType>, skip_publish: bool, dry_run: bool) -> Result<()> {
     println!("{}", "🚀 Starting Release Workflow...".magenta().bold());
     println!("{}", "═".repeat(50).dimmed());
 

@@ -85,6 +85,11 @@ tokio-rustls = "0.26"
 
 # Observability
 prometheus = "0.13"
+opentelemetry = "0.21"
+opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.14", features = ["grpc-tonic"] }
+tracing-opentelemetry = "0.22"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # Random
 rand = "0.9"

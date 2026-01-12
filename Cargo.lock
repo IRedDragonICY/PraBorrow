@@ -2572,6 +2572,9 @@ dependencies = [
  "config",
  "crc32fast",
  "futures",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
  "petgraph 0.6.5",
  "praborrow-core",
  "prometheus",
@@ -2588,6 +2591,8 @@ dependencies = [
  "tonic 0.13.1",
  "tonic-build",
  "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -2618,6 +2623,7 @@ dependencies = [
  "praborrow-core",
  "sha2",
  "thiserror 2.0.17",
+ "tokio",
  "tracing",
  "z3",
 ]
