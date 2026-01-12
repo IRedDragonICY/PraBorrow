@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut sovereign_account: Sovereign<BankAccount> = Sovereign::new(account_data); // Invariant checked here
 
     // 3. Access locally (Domestic Jurisdiction)
-    if let Ok(mut account) = sovereign_account.try_get_mut() {
+    if let Ok(account) = sovereign_account.try_get_mut() {
         println!("   Current Balance: ${}", account.balance);
         account.withdraw(100).expect("Withdraw failed");
         println!("   New Balance: ${}", account.balance);

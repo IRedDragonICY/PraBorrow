@@ -112,6 +112,7 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
     loop {
         terminal.draw(|f| ui(f, &app))?;
 
+        #[allow(clippy::collapsible_if)]
         if event::poll(Duration::from_millis(100))? {
              if let Event::Key(key) = event::read()? {
                  // ... handle inputs ...
@@ -158,6 +159,7 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
             
             // Poll gRPC every ~1s (10 ticks)
             if let Some(Some(c)) = &mut client {
+                 #[allow(clippy::collapsible_if, clippy::manual_is_multiple_of)]
                  if app.tick_count % 10 == 0 {
                      use praborrow_lease::grpc::proto::{Empty, LogRequest};
                      
@@ -181,19 +183,14 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
             }
 
             // Every 50 ticks (~5s), simulate a deadlock check
+            #[allow(clippy::manual_is_multiple_of)]
             if app.tick_count % 50 == 0 {
                  // Keep simulation for offline mode or fallback
                  if matches!(app.mode, Mode::Offline { .. }) {
-                    if app.tick_count % 150 == 0 {
-                        app.deadlocks = vec![
-                            "Resource 'LEASE_DB_01' circular wait detected (Node A -> Node B -> Node A)".to_string(),
-                            "Dependency cycle in Sovereign graph: [Shard 4] -> [Shard 7] -> [Shard 4]".to_string(),
-                        ];
-                    } else {
                         app.deadlocks.clear();
                     }
                  }
-            }
+
         }
 
         if app.should_quit {

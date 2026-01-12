@@ -15,16 +15,20 @@ pub struct TelemetryConfig {
     service_name: String,
     otlp_endpoint: Option<String>,
     log_level: String,
+    #[allow(dead_code)]
     transport: TelemetryTransport,
 }
 
 impl TelemetryConfig {
     /// Creates a new configuration builder with default settings.
+    #[must_use]
     pub fn builder() -> TelemetryConfigBuilder {
         TelemetryConfigBuilder::default()
     }
 
     /// Initializes the telemetry subsystem with this configuration.
+    /// # Errors
+    /// Returns error if tracing provider cannot be initialized.
     pub fn init(self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
         // Create env filter layer
         let filter = tracing_subscriber::EnvFilter::new(self.log_level);
@@ -71,30 +75,35 @@ pub struct TelemetryConfigBuilder {
 
 impl TelemetryConfigBuilder {
     /// Sets the service name (required).
+    #[must_use]
     pub fn service_name(mut self, name: impl Into<String>) -> Self {
         self.service_name = Some(name.into());
         self
     }
 
     /// Sets the OTLP endpoint URL.
+    #[must_use]
     pub fn endpoint(mut self, endpoint: impl Into<String>) -> Self {
         self.otlp_endpoint = Some(endpoint.into());
         self
     }
 
     /// Sets the log level (default: "info").
+    #[must_use]
     pub fn log_level(mut self, level: impl Into<String>) -> Self {
         self.log_level = Some(level.into());
         self
     }
 
     /// Sets the transport protocol (default: Grpc).
+    #[must_use]
     pub fn transport(mut self, transport: TelemetryTransport) -> Self {
         self.transport = Some(transport);
         self
     }
 
     /// Builds the configuration.
+    #[must_use]
     pub fn build(self) -> TelemetryConfig {
         TelemetryConfig {
             service_name: self

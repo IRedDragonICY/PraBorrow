@@ -1,3 +1,4 @@
+extern crate alloc;
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use praborrow::core::CheckProtocol;
 use praborrow::defense::Constitution;
