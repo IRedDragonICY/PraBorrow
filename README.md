@@ -9,25 +9,16 @@
 
 PraBorrow enforces "Memory safety with sovereign integrity" by combining strict ownership semantics, procedural invariant checking, and zero-copy logistics into a unified framework.
 
-## What's New in v0.6.0
+## What's New in v0.8.0
 
-### Safety Overhaul
-- **Zero Library Panics**: All critical paths now return `Result` types
-- **Memory Leak Fix**: `RawResource` now properly deallocates via `Drop` implementation
-- **Input Validation**: Empty buffers, zero-duration leases, and invalid addresses are caught early
+### Ecosystem & Logistics
+- **Garuda Dashboard**: Integrated Deadlock Detection (`WaitForGraph`) in `praborrow-lease`.
+- **Micro-Kernel Architecture**: Strict separation of concerns (Core, Lease, Defense).
+- **Safety**: `no_std` compatible `ConstitutionError` with `alloc::collections`.
 
-### API Improvements  
-- **Non-Panicking `enforce_law()`**: Returns `Result<(), String>` instead of panicking
-- **New Sovereign Methods**: `new_exiled()`, `is_domestic()`, `is_exiled()`, `repatriate()`
-- **Configurable Networks**: `NetworkConfig` for buffer size and timeouts
-
-### Observability
-- **Structured Logging**: Full `tracing` integration across all crates
-- **Prover Warnings**: Stub backend now warns when Z3 is disabled
-
-### Infrastructure
-- **Injectable Storage**: `RaftNode::new()` accepts pluggable storage backends
-- **UDP Safety**: Exponential backoff, read timeouts, packet size validation
+### Tooling
+- **xtask**: Automated verification, release, and submodule management.
+- **Parallel Publish**: (Stub) Foundation for parallel crate publishing.
 
 ## Architecture
 
@@ -48,50 +39,50 @@ The framework is modularized into specialized crates:
 
 ```toml
 [dependencies]
-praborrow = "0.6.0"
+praborrow = "0.8.0"
 ```
 
 ## Quick Start
 
+### 1. Sovereign Integrity & Constitution
+
 ```rust
-use praborrow::core::{Sovereign, SovereigntyError, CheckProtocol};
-use praborrow::defense::Constitution;
+use praborrow::prelude::*;
 
 #[derive(Constitution)]
 struct FiscalData {
-    #[invariant(self.value >= 0)]
+    /// Invariants are checked at compile-time/runtime
+    #[invariant("self.value >= 0")]
     value: i32,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Establish Sovereign Data
+    // Establish Sovereign Data
     let data = Sovereign::new(FiscalData { value: 100 });
     
-    // 2. Enforce Constitution (now returns Result!)
-    data.enforce_law()?;
-    
-    // 3. Safe access with error handling
-    let value = data.try_get()?;
-    println!("Value: {}", value.value);
-    
-    // 4. Check state with helper methods
-    assert!(data.is_domestic());
-    
-    // 5. Annex (Move to remote)
-    data.annex()?; // Propagate errors, do not panic
-    assert!(data.is_exiled());
-    
-    // 6. Graceful error instead of panic
-    match data.try_get() {
-        Ok(_) => unreachable!(),
-        Err(SovereigntyError::ForeignJurisdiction) => {
-            println!("Resource is exiled - handle gracefully");
-        }
+    // Invariants enforced automatically on access
+    if let Some(valid_data) = data.try_get() {
+        println!("Value: {}", valid_data.value);
     }
     
     Ok(())
 }
 ```
+
+### 2. Garuda Deadlock Detection
+
+```rust
+use praborrow::lease::deadlock::WaitForGraph;
+
+let mut graph = WaitForGraph::new();
+graph.add_wait(1, 200); // Tx 1 waits for Res 200
+graph.add_wait(200, 1); // Res 200 held by Tx 1 (Deadlock if cycle)
+
+if graph.detect_cycle() {
+    println!("Deadlock detected!");
+}
+```
+
 
 ## Safety Features
 

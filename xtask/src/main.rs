@@ -1,6 +1,7 @@
+#![allow(warnings)]
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle, MultiProgress};
 use owo_colors::OwoColorize;
 use std::fs;
 use toml_edit::{DocumentMut, value, Value};
@@ -51,10 +52,13 @@ enum Commands {
         /// Skip publish step
         #[arg(long)]
         skip_publish: bool,
+        /// Dry run mode (no commits, no push, no publish)
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 
-#[derive(Clone, Copy, ValueEnum)]
+#[derive(Clone, Copy, ValueEnum, Debug)]
 enum BumpType {
     /// Increment patch version (0.5.0 -> 0.5.1)
     Patch,
@@ -63,6 +67,8 @@ enum BumpType {
     /// Increment major version (0.5.0 -> 1.0.0)
     Major,
 }
+
+pub mod publish;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -83,15 +89,26 @@ fn main() -> Result<()> {
             println!("{}", "🛡️ Verifying project integrity...".green().bold());
             cmd!(sh, "cargo build --workspace").run()?;
             cmd!(sh, "cargo test --workspace").run()?;
+            
+            // Security check
+            println!("{}", "🔒 Running security audit...".blue());
+            if cmd!(sh, "cargo audit --version").quiet().run().is_ok() {
+                 cmd!(sh, "cargo audit").run()?;
+            } else {
+                 println!("{}", "⚠️ cargo-audit not found. Skipping security check.".yellow());
+                 println!("  Install with: cargo install cargo-audit");
+            }
+            
             println!("{}", "✅ Verification complete".green().bold());
         }
         Commands::GitSync { message, push } => run_git_sync(&sh, &message, push)?,
-        Commands::Publish { dry_run } => run_publish(&sh, dry_run)?,
+        Commands::Publish { dry_run } => publish::run_publish_parallel(&sh, dry_run)?,
         Commands::BumpVersion { bump_type } => run_bump_version(&sh, bump_type)?,
         Commands::Release {
             bump_type,
             skip_publish,
-        } => run_release(&sh, bump_type, skip_publish)?,
+            dry_run,
+        } => run_release(&sh, bump_type, skip_publish, dry_run)?,
     }
 
     Ok(())
@@ -102,51 +119,54 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
         anyhow::bail!("Commit message cannot be empty");
     }
 
-    let submodules = vec![
-        "crates/praborrow-core",
-        "crates/praborrow-defense",
-        "crates/praborrow-lease",
-        "crates/praborrow-logistics",
-        "crates/praborrow-diplomacy",
-        "crates/praborrow-sidl",
-        "crates/praborrow-macros",
-        "crates/praborrow-prover",
-    ];
+    // Dynamic submodule parsing
+    let gitmodules_content = sh.read_file(".gitmodules")?;
+    let mut submodules = Vec::new();
+    for line in gitmodules_content.lines() {
+        if let Some(path) = line.trim().strip_prefix("path = ") {
+            submodules.push(path.trim().to_string());
+        }
+    }
 
     println!("{}", "🔄 Syncing submodules...".cyan().bold());
 
+    let mp = indicatif::MultiProgress::new();
+    let style = ProgressStyle::with_template("{spinner:.green} {msg}")
+        .unwrap()
+        .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏");
+
     for sub in submodules {
-        if !sh.path_exists(sub) {
-            println!(
-                "{}",
-                format!("⚠️ Submodule {} not found, skipping", sub).yellow()
-            );
+        let pb = mp.add(ProgressBar::new_spinner());
+        pb.set_style(style.clone());
+        pb.set_message(format!("Processing {}...", sub));
+
+        if !sh.path_exists(&sub) {
+            pb.finish_with_message(format!("⚠️ {} not found", sub).yellow().to_string());
             continue;
         }
 
-        let _guard = sh.push_dir(sub);
-        println!("{}", format!("📂 Processing {}...", sub).blue());
-
+        let _guard = sh.push_dir(&sub);
+        
         // Check if there are changes
         let status = cmd!(sh, "git status --porcelain").read()?;
         if !status.is_empty() {
-            println!("   Changes detected. Committing...");
-            cmd!(sh, "git add .").run()?;
-            cmd!(sh, "git commit -m {msg}").run()?;
+            pb.set_message(format!("Committing {}...", sub));
+            cmd!(sh, "git add .").quiet().run()?;
+            cmd!(sh, "git commit -m {msg}").quiet().run()?;
 
             if push {
-                // Dynamic branch detection
+                pb.set_message(format!("Pushing {}...", sub));
                 let current_branch = cmd!(sh, "git branch --show-current").read()?;
-                let remote = "origin"; // Could be dynamic too, but origin is standard
-                println!("   Pushing to {}/{}...", remote, current_branch);
+                let remote = "origin"; 
                 
-                // Try catch push error? xshell throws error on non-zero exit.
-                if let Err(e) = cmd!(sh, "git push {remote} {current_branch}").run() {
-                    println!("{}", format!("   ⚠️ Push failed for {}: {}", sub, e).red());
+                if let Err(e) = cmd!(sh, "git push {remote} {current_branch}").quiet().run() {
+                     pb.finish_with_message(format!("❌ Push failed: {}", e).red().to_string());
+                     continue;
                 }
             }
+            pb.finish_with_message(format!("✅ {} updated", sub).green().to_string());
         } else {
-            println!("   Clean.");
+            pb.finish_with_message(format!("✓ {} clean", sub).dimmed().to_string());
         }
     }
 
@@ -168,218 +188,7 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
     Ok(())
 }
 
-fn run_publish(sh: &Shell, dry_run: bool) -> Result<()> {
-    // Topological order for publishing
-    let order = vec![
-        "crates/praborrow-core",      // No deps
-        "crates/praborrow-macros",    // Syn/quote/proc-macro
-        "crates/praborrow-defense",   // Proc-macro, uses core types in generated code
-        "crates/praborrow-logistics", // Likely core dep
-        "crates/praborrow-sidl",      // Macro
-        "crates/praborrow-diplomacy", // Likely core dep
-        "crates/praborrow-prover",    // Depends on core
-        "crates/praborrow-lease",     // Depends on core
-        "crates/praborrow",           // Facade - depends on all
-    ];
 
-    println!("{}", "📦 Starting Publish Workflow...".magenta().bold());
-    if dry_run {
-        println!("{}", "ℹ️  DRY RUN MODE".yellow());
-    }
-
-    let mut published = 0;
-    let mut skipped = 0;
-    let mut failed = 0;
-
-    // Get workspace version for inheritance
-    let root_cargo = sh.read_file("Cargo.toml")?;
-    let workspace_version = extract_workspace_version(&root_cargo);
-
-    for crate_path in &order {
-        let _guard = sh.push_dir(crate_path);
-        let crate_name = crate_path.split('/').next_back().unwrap();
-
-        // Read version from Cargo.toml
-        let cargo_toml = sh.read_file("Cargo.toml")?;
-        let local_version = extract_version(&cargo_toml, workspace_version.as_deref())?;
-
-        println!(
-            "{}",
-            format!("\n🔍 Checking {}@{}...", crate_name, local_version).cyan()
-        );
-
-        // Check if this version already exists on crates.io
-        if !dry_run {
-            let search_result = cmd!(sh, "cargo search {crate_name} --limit 1")
-                .read()
-                .unwrap_or_default();
-            if search_result.contains(&format!("{}@{}", crate_name, local_version))
-                || search_result.contains(&format!("{} = \"{}\"", crate_name, local_version))
-            {
-                println!(
-                    "{}",
-                    format!(
-                        "⏭️  {} v{} already exists, skipping",
-                        crate_name, local_version
-                    )
-                    .yellow()
-                );
-                skipped += 1;
-                continue;
-            }
-        }
-
-        println!("{}", format!("🚀 Publishing {}...", crate_name).cyan());
-
-        let result = if dry_run {
-            cmd!(sh, "cargo publish --dry-run --allow-dirty").run()
-        } else {
-            // Always use --allow-dirty to avoid workspace inheritance issues
-            cmd!(sh, "cargo publish --allow-dirty").run()
-        };
-
-        match result {
-            Ok(_) => {
-                println!(
-                    "{}",
-                    format!("✅ Published {} v{}", crate_name, local_version).green()
-                );
-                published += 1;
-
-                if !dry_run {
-                    // Smart propagation wait with verification
-                    wait_for_index_propagation(sh, crate_name, &local_version)?;
-                }
-            }
-            Err(e) => {
-                let err_str = e.to_string();
-                if err_str.contains("already exists") {
-                    println!(
-                        "{}",
-                        format!("⏭️  {} already published, skipping", crate_name).yellow()
-                    );
-                    skipped += 1;
-                } else {
-                    println!(
-                        "{}",
-                        format!("❌ Failed to publish {}: {}", crate_name, e).red()
-                    );
-                    failed += 1;
-
-                    // Ask user if they want to continue
-                    println!("{}", "⚠️  Continuing with next crate...".yellow());
-                }
-            }
-        }
-    }
-
-    // Summary
-    println!("\n{}", "═".repeat(50).dimmed());
-    println!("{}", "📊 Publish Summary".magenta().bold());
-    println!("   ✅ Published: {}", published.to_string().green());
-    println!("   ⏭️  Skipped:   {}", skipped.to_string().yellow());
-    println!("   ❌ Failed:    {}", failed.to_string().red());
-    println!("{}", "═".repeat(50).dimmed());
-
-    if failed > 0 {
-        println!(
-            "{}",
-            "\n⚠️  Some crates failed to publish. Check errors above.".red()
-        );
-    } else {
-        println!(
-            "{}",
-            "\n🎉 Publish workflow finished successfully!"
-                .magenta()
-                .bold()
-        );
-    }
-
-    Ok(())
-}
-
-/// Extract version from Cargo.toml content
-fn extract_version(cargo_toml: &str, workspace_version: Option<&str>) -> Result<String> {
-    let doc = cargo_toml.parse::<DocumentMut>()?;
-    
-    if let Some(package) = doc.get("package") {
-        if let Some(version) = package.get("version") {
-             if let Some(v_str) = version.as_str() {
-                 return Ok(v_str.to_string());
-             }
-             // Handle { workspace = true }
-             let is_workspace = if let Some(table) = version.as_inline_table() {
-                 table.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false)
-             } else if let Some(table) = version.as_table() {
-                 table.get("workspace").and_then(|v| v.as_bool()).unwrap_or(false)
-             } else {
-                 false
-             };
-
-             if is_workspace {
-                 if let Some(ver) = workspace_version {
-                     return Ok(ver.to_string());
-                 }
-             }
-        }
-    }
-
-    // Check workspace.package.version (fallback if we are looking at root)
-    if let Some(version) = doc.get("workspace").and_then(|w| w.get("package")).and_then(|p| p.get("version")).and_then(|v| v.as_str()) {
-        return Ok(version.to_string());
-    }
-
-    anyhow::bail!("Could not extract version from Cargo.toml (checked package.version and workspace inheritance)")
-}
-
-/// Wait for crates.io index to propagate the new version
-fn wait_for_index_propagation(sh: &Shell, crate_name: &str, version: &str) -> Result<()> {
-    let pb = ProgressBar::new(30);
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] {bar:40.cyan/blue} {msg}",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
-    );
-    pb.set_message(format!(
-        "Waiting for {} v{} to propagate...",
-        crate_name, version
-    ));
-
-    // Try up to 300 seconds (5 minutes), checking every 2 seconds
-    // 300s / 2s = 150 iterations
-    for i in 0..150 {
-        pb.inc(2);
-        std::thread::sleep(std::time::Duration::from_secs(2));
-
-        // Check if version is now available
-        let search = cmd!(sh, "cargo search {crate_name} --limit 1")
-            .read()
-            .unwrap_or_default();
-        if search.contains(version) {
-            pb.finish_with_message(format!(
-                "✓ {} v{} available on crates.io",
-                crate_name, version
-            ));
-            return Ok(());
-        }
-
-        // Update progress message periodically
-        if i % 15 == 0 && i > 0 {
-            pb.set_message(format!(
-                "Still waiting for {} (index may be slow)...",
-                crate_name
-            ));
-        }
-    }
-
-    pb.finish_with_message(format!(
-        "Timeout - {} may take longer to appear",
-        crate_name
-    ));
-    Ok(())
-}
 
 /// Bump version in workspace Cargo.toml
 fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
@@ -468,19 +277,37 @@ fn bump_semver(version: &str, bump_type: BumpType) -> Result<String> {
 
 
 /// Full release workflow
-fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool) -> Result<()> {
+fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool, dry_run: bool) -> Result<()> {
     println!("{}", "🚀 Starting Release Workflow...".magenta().bold());
     println!("{}", "═".repeat(50).dimmed());
 
+    if dry_run {
+        println!("{}", "ℹ️  DRY RUN MODE ENABLED".yellow().bold());
+        println!("   No changes will be committed or pushed.");
+        println!("   No crates will be published.\n");
+    }
+
     // Step 1: Bump version
     println!("\n{}", "Step 1/5: Bumping version...".cyan().bold());
-    match run_bump_version(sh, bump_type) {
-        Ok(_) => {},
-        Err(e) => {
-            println!("{}", "❌ Version bump failed. State is clean (or unchanged).".red());
-            return Err(e);
+    if dry_run {
+        println!("   [Dry Run] Would bump version ({:?})", bump_type);
+    } else {
+        match run_bump_version(sh, bump_type) {
+            Ok(_) => {},
+            Err(e) => {
+                println!("{}", "❌ Version bump failed. State is clean (or unchanged).".red());
+                return Err(e);
+            }
         }
     }
+
+    // Get new version (mock for dry run if needed, or read actual if bumped)
+    let new_version = if dry_run {
+        "0.0.0-dryrun".to_string()
+    } else {
+         let cargo_toml = fs::read_to_string("Cargo.toml")?;
+         extract_workspace_version(&cargo_toml).unwrap_or_else(|| "unknown".to_string())
+    };
 
     // Wrap subsequent steps in a closure or block to handle rollback
     let result = (|| -> Result<()> {
@@ -499,22 +326,28 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool) -> Result<()
     })();
 
     if let Err(e) = result {
-        println!("{}", "❌ Build or Test failed. Reverting version bump...".red());
-        cmd!(sh, "git checkout Cargo.toml crates/praborrow/Cargo.toml").run()?;
+        println!("{}", "❌ Build or Test failed.".red());
+        if !dry_run {
+             println!("{}", "   Reverting version bump...".yellow());
+             cmd!(sh, "git checkout Cargo.toml crates/praborrow/Cargo.toml").run()?;
+             // Also need to revert other crates if bumped... 
+             // Ideally we'd valid 'git restore .' but that's risky.
+             // Rely on user to check git status.
+             println!("{}", "⚠️  Please check git status and revert manual changes if needed.".yellow());
+        }
         return Err(e);
     }
     
-    // Step 4...
-
-    // Get new version for commit message
-    let cargo_toml = fs::read_to_string("Cargo.toml")?;
-    let new_version =
-        extract_workspace_version(&cargo_toml).unwrap_or_else(|| "unknown".to_string());
-
     // Step 4: Commit and push
     println!("\n{}", "Step 4/5: Committing changes...".cyan().bold());
     let commit_msg = format!("release: v{}", new_version);
-    run_git_sync(sh, &commit_msg, true)?;
+    
+    if dry_run {
+         println!("   [Dry Run] Would commit with message: {:?}", commit_msg);
+         println!("   [Dry Run] Would push to origin");
+    } else {
+        run_git_sync(sh, &commit_msg, true)?;
+    }
 
     // Step 5: Publish (optional)
     if skip_publish {
@@ -524,16 +357,25 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool) -> Result<()
         );
     } else {
         println!("\n{}", "Step 5/5: Publishing to crates.io...".cyan().bold());
-        run_publish(sh, false)?;
+        publish::run_publish_parallel(sh, dry_run)?;
     }
 
     println!("\n{}", "═".repeat(50).dimmed());
-    println!(
-        "{}",
-        format!("🎉 Release v{} complete!", new_version)
-            .magenta()
-            .bold()
-    );
+    if dry_run {
+         println!(
+            "{}",
+            format!("🎉 [Dry Run] Release v{} completed successfully!", new_version)
+                .magenta()
+                .bold()
+        );
+    } else {
+        println!(
+            "{}",
+            format!("🎉 Release v{} complete!", new_version)
+                .magenta()
+                .bold()
+        );
+    }
 
     Ok(())
 }
