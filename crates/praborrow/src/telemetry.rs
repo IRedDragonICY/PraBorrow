@@ -1,5 +1,5 @@
-use opentelemetry_sdk::propagation::TraceContextPropagator;
 use opentelemetry_otlp::WithExportConfig;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 // Transport types for OTLP export
@@ -33,7 +33,7 @@ impl TelemetryConfig {
         // Note: Currently we only support gRPC (tonic) as per original implementation
         // but the config allows for future HTTP support.
         let mut exporter = opentelemetry_otlp::new_exporter().tonic();
-        
+
         if let Some(endpoint) = self.otlp_endpoint {
             exporter = exporter.with_endpoint(endpoint);
         }
@@ -41,12 +41,12 @@ impl TelemetryConfig {
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
             .with_exporter(exporter)
-            .with_trace_config(
-                opentelemetry_sdk::trace::config()
-                    .with_resource(opentelemetry_sdk::Resource::new(vec![
-                        opentelemetry::KeyValue::new("service.name", self.service_name),
-                    ]))
-            )
+            .with_trace_config(opentelemetry_sdk::trace::config().with_resource(
+                opentelemetry_sdk::Resource::new(vec![opentelemetry::KeyValue::new(
+                    "service.name",
+                    self.service_name,
+                )]),
+            ))
             .install_batch(opentelemetry_sdk::runtime::Tokio)?;
 
         // Create tracing layer
@@ -102,7 +102,9 @@ impl TelemetryConfigBuilder {
     /// Builds the configuration.
     pub fn build(self) -> TelemetryConfig {
         TelemetryConfig {
-            service_name: self.service_name.unwrap_or_else(|| "praborrow-unknown".to_string()),
+            service_name: self
+                .service_name
+                .unwrap_or_else(|| "praborrow-unknown".to_string()),
             otlp_endpoint: self.otlp_endpoint,
             log_level: self.log_level.unwrap_or_else(|| "info".to_string()),
             transport: self.transport.unwrap_or(TelemetryTransport::Grpc),
@@ -115,11 +117,13 @@ impl TelemetryConfigBuilder {
 /// # Deprecated
 /// Use `TelemetryConfig::builder().service_name(name).init()` instead.
 #[deprecated(since = "0.8.0", note = "Use TelemetryConfig::builder() instead")]
-pub fn init_tracing(service_name: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-   TelemetryConfig::builder()
-       .service_name(service_name)
-       .build()
-       .init()
+pub fn init_tracing(
+    service_name: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    TelemetryConfig::builder()
+        .service_name(service_name)
+        .build()
+        .init()
 }
 
 /// Shuts down the telemetry subsystem, flushing pending spans.

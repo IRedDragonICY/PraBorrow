@@ -1,0 +1,17 @@
+[package]
+name = "prb-cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ratatui = "0.30.0"
+crossterm = "0.28" # Using reasonably recent version
+clap = { version = "4.5", features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+praborrow-lease = { workspace = true, features = ["std", "grpc", "observability"] }
+praborrow-core = { workspace = true }
+sled = { workspace = true }
+anyhow = "1.0"
+tui-logger = "0.14" # Useful for logs
+tracing = { workspace = true }
+tracing-subscriber = "0.3"

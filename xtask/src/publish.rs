@@ -1,9 +1,9 @@
+use anyhow::{Context, Result};
 use rayon::prelude::*;
-use xshell::{Shell, cmd};
-use anyhow::{Result, Context};
-use std::path::{Path, PathBuf};
 use std::collections::{HashMap, HashSet};
 use std::fs;
+use std::path::{Path, PathBuf};
+use xshell::{cmd, Shell};
 
 #[derive(Debug, Clone)]
 struct Crate {
@@ -21,7 +21,7 @@ pub fn run_publish_parallel(sh: &Shell, dry_run: bool) -> Result<()> {
 
     // 2. Build Dependency Graph & Layers
     let layers = topological_sort(&crates)?;
-    
+
     println!("📊 Computed {} dependency layers.", layers.len());
     for (i, layer) in layers.iter().enumerate() {
         let names: Vec<_> = layer.iter().map(|c| &c.name).collect();
@@ -31,11 +31,11 @@ pub fn run_publish_parallel(sh: &Shell, dry_run: bool) -> Result<()> {
     // 3. Execute Layers Sequentially
     for (i, layer) in layers.iter().enumerate() {
         println!("\n▶️  Executing Layer {} ({})", i, layer.len());
-        
+
         // Execute crates in this layer in parallel
-        layer.par_iter().try_for_each(|krate| -> Result<()> {
-            publish_crate(dry_run, krate)
-        })?;
+        layer
+            .par_iter()
+            .try_for_each(|krate| -> Result<()> { publish_crate(dry_run, krate) })?;
 
         if !dry_run && i < layers.len() - 1 {
             println!("⏳ Waiting 15s for crates.io index propagation...");
@@ -53,22 +53,22 @@ fn publish_crate(dry_run: bool, krate: &Crate) -> Result<()> {
     // Creating new Shell is cheap.
     let sh = Shell::new()?;
     let _guard = sh.push_dir(&krate.path);
-    
+
     let msg = if dry_run { "Dry Publish" } else { "PUBLISHING" };
     println!("   [{}] {}...", msg, krate.name);
 
     if dry_run {
-         cmd!(sh, "cargo publish --dry-run --allow-dirty").run()?;
+        cmd!(sh, "cargo publish --dry-run --allow-dirty").run()?;
     } else {
-         cmd!(sh, "cargo publish").run()?;
+        cmd!(sh, "cargo publish").run()?;
     }
-    
+
     Ok(())
 }
 
 fn load_workspace() -> Result<Vec<Crate>> {
     let mut crates = Vec::new();
-    
+
     // We assume standard layout: crates/* and current dir (for root/facade)
     // 1. Scan crates/ directory
     let crates_dir = Path::new("crates");
@@ -82,8 +82,6 @@ fn load_workspace() -> Result<Vec<Crate>> {
         }
     }
 
-
-
     Ok(crates)
 }
 
@@ -91,10 +89,11 @@ fn parse_crate(path: &Path) -> Result<Crate> {
     let manifest_path = path.join("Cargo.toml");
     let content = fs::read_to_string(&manifest_path)
         .with_context(|| format!("Failed to read {:?}", manifest_path))?;
-    
+
     let doc = content.parse::<toml_edit::DocumentMut>()?;
-    
-    let name = doc["package"]["name"].as_str()
+
+    let name = doc["package"]["name"]
+        .as_str()
         .context("Missing package name")?
         .to_string();
 
@@ -105,9 +104,9 @@ fn parse_crate(path: &Path) -> Result<Crate> {
         for (dep_name, dep_info) in deps.iter() {
             // Check if it has 'path' or 'workspace = true'
             // If workspace=true, we assume it's a local crate deps?
-            // Yes, checking if it is in our workspace list later is better, 
+            // Yes, checking if it is in our workspace list later is better,
             // but for now retrieve all potential internal deps.
-            
+
             // Simplified: We verify later if this dep is in our `crates` list.
             local_deps.push(dep_name.to_string());
         }
@@ -122,23 +121,23 @@ fn parse_crate(path: &Path) -> Result<Crate> {
 
 fn topological_sort(crates: &[Crate]) -> Result<Vec<Vec<Crate>>> {
     let mut layers = Vec::new();
-    let mut remaining: HashMap<String, Crate> = crates.iter()
-        .map(|c| (c.name.clone(), c.clone()))
-        .collect();
-    
+    let mut remaining: HashMap<String, Crate> =
+        crates.iter().map(|c| (c.name.clone(), c.clone())).collect();
+
     let all_names: HashSet<String> = remaining.keys().cloned().collect();
 
     while !remaining.is_empty() {
         // Find crates with NO remaining local dependencies
-        let layer: Vec<Crate> = remaining.values()
+        let layer: Vec<Crate> = remaining
+            .values()
             .filter(|c| {
                 c.local_deps.iter().all(|dep_name| {
                     // It's satisfied if it's NOT in 'remaining' (i.e., already processed)
                     // OR if it's not a workspace crate at all (external dep)
                     !remaining.contains_key(dep_name)
-                    // Note: If we filter local_deps during parsing to ONLY include workspace members, 
+                    // Note: If we filter local_deps during parsing to ONLY include workspace members,
                     // verification is simpler. But here 'local_deps' has all deps.
-                    // We check if dep_name is in 'all_names'. 
+                    // We check if dep_name is in 'all_names'.
                     // If dep is external (e.g. 'serde'), it's not in 'all_names', so !contains_key works.
                     // If dep is internal (e.g. 'core') and unprocessed, it IS in 'remaining', so contains_key is true.
                 })
@@ -147,7 +146,10 @@ fn topological_sort(crates: &[Crate]) -> Result<Vec<Vec<Crate>>> {
             .collect();
 
         if layer.is_empty() {
-            return Err(anyhow::anyhow!("Cycle detected or unresolvable dependencies! Remaining: {:?}", remaining.keys()));
+            return Err(anyhow::anyhow!(
+                "Cycle detected or unresolvable dependencies! Remaining: {:?}",
+                remaining.keys()
+            ));
         }
 
         // Add to result

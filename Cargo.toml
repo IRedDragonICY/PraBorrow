@@ -9,7 +9,7 @@ members = [
     "crates/praborrow-macros",
     "crates/praborrow-prover",
     "crates/praborrow",
-    "xtask",
+    "xtask", "crates/prb-cli",
 ]
 resolver = "2"
 
@@ -76,7 +76,7 @@ z3 = "0.19.7"
 lazy_static = "1.4"
 
 # gRPC
-tonic = "0.13"
+tonic = { version = "0.13", features = ["tls-native-roots"] }
 prost = "0.13"
 
 # TLS

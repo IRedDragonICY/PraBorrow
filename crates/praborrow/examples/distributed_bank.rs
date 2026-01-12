@@ -1,5 +1,5 @@
-use praborrow::prelude::*;
 use praborrow::lease::deadlock::WaitForGraph;
+use praborrow::prelude::*;
 use std::sync::Arc;
 
 /// A Bank Account resource protected by the Constitution.
@@ -51,43 +51,48 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("   New Balance: ${}", account.balance);
 
         // Verify Invariants manually (Runtime Check)
-        account.enforce_law()?; 
+        account.enforce_law()?;
         println!("   ✅ Constitution upheld: Balance is non-negative.");
     }
 
     // 4. Simulate Deadlock Detection (Garuda Dashboard Feature)
     println!("\n🔍 Simulating Transaction Deadlock...");
-    
+
     let detector = Arc::new(std::sync::Mutex::new(WaitForGraph::new()));
-    
+
     // Transaction A (Holder 1) locks Account 100, waits for Account 200
     // Transaction B (Holder 2) locks Account 200, waits for Account 100
     // Cycle: 1 -> 200 -> 2 -> 100 -> 1
-    
+
     {
         let mut graph = detector.lock().unwrap();
         // Holder 1 waits for Resource 200
-        graph.add_wait(1, 200); 
+        graph.add_wait(1, 200);
         // Resource 200 is held by Holder 2
-        graph.add_wait(200, 2); 
+        graph.add_wait(200, 2);
         // Holder 2 waits for Resource 100
         graph.add_wait(2, 100);
         // Resource 100 is held by Holder 1
         graph.add_wait(100, 1);
-        
+
         if graph.detect_cycle() {
-             println!("   ⚠️ DEADLOCK DETECTED! Cycle found in wait-for graph.");
-             println!("   Garuda Dashboard would confirm this state via 'verify_deadlock'.");
+            println!("   ⚠️ DEADLOCK DETECTED! Cycle found in wait-for graph.");
+            println!("   Garuda Dashboard would confirm this state via 'verify_deadlock'.");
         } else {
-             println!("   No deadlock found.");
+            println!("   No deadlock found.");
         }
     }
 
     // 5. Demonstrate Formal Verification Stub (Phase 3)
     // In a full implementation, this would call the SMT solver.
     println!("\nzz Verifying Integrity (Formal Proof Stub)...");
-    let token = sovereign_account.verify_integrity().expect("Verification failed"); 
-    println!("   Refusing to annex without proof (Safety First): Token received {:?}", token);
+    let token = sovereign_account
+        .verify_integrity()
+        .expect("Verification failed");
+    println!(
+        "   Refusing to annex without proof (Safety First): Token received {:?}",
+        token
+    );
 
     println!("\n✅ Example completed successfully.");
     Ok(())

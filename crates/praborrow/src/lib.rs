@@ -65,9 +65,9 @@ pub mod telemetry;
 /// use praborrow::prelude::*;
 /// ```
 pub mod prelude {
+    pub use crate::PraBorrowError;
     pub use praborrow_core::{CheckProtocol, Sovereign};
     pub use praborrow_defense::Constitution;
     #[cfg(feature = "prover")]
     pub use praborrow_prover::VerifiableSovereign;
-    pub use crate::PraBorrowError;
 }

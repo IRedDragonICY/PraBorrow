@@ -1,10 +1,10 @@
 #![allow(warnings)]
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
-use indicatif::{ProgressBar, ProgressStyle, MultiProgress};
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use owo_colors::OwoColorize;
 use std::fs;
-use toml_edit::{DocumentMut, value, Value};
+use toml_edit::{value, DocumentMut, Value};
 use xshell::{cmd, Shell};
 
 #[derive(Parser)]
@@ -89,16 +89,19 @@ fn main() -> Result<()> {
             println!("{}", "🛡️ Verifying project integrity...".green().bold());
             cmd!(sh, "cargo build --workspace").run()?;
             cmd!(sh, "cargo test --workspace").run()?;
-            
+
             // Security check
             println!("{}", "🔒 Running security audit...".blue());
             if cmd!(sh, "cargo audit --version").quiet().run().is_ok() {
-                 cmd!(sh, "cargo audit").run()?;
+                cmd!(sh, "cargo audit").run()?;
             } else {
-                 println!("{}", "⚠️ cargo-audit not found. Skipping security check.".yellow());
-                 println!("  Install with: cargo install cargo-audit");
+                println!(
+                    "{}",
+                    "⚠️ cargo-audit not found. Skipping security check.".yellow()
+                );
+                println!("  Install with: cargo install cargo-audit");
             }
-            
+
             println!("{}", "✅ Verification complete".green().bold());
         }
         Commands::GitSync { message, push } => run_git_sync(&sh, &message, push)?,
@@ -146,7 +149,7 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
         }
 
         let _guard = sh.push_dir(&sub);
-        
+
         // Check if there are changes
         let status = cmd!(sh, "git status --porcelain").read()?;
         if !status.is_empty() {
@@ -157,11 +160,11 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
             if push {
                 pb.set_message(format!("Pushing {}...", sub));
                 let current_branch = cmd!(sh, "git branch --show-current").read()?;
-                let remote = "origin"; 
-                
+                let remote = "origin";
+
                 if let Err(e) = cmd!(sh, "git push {remote} {current_branch}").quiet().run() {
-                     pb.finish_with_message(format!("❌ Push failed: {}", e).red().to_string());
-                     continue;
+                    pb.finish_with_message(format!("❌ Push failed: {}", e).red().to_string());
+                    continue;
                 }
             }
             pb.finish_with_message(format!("✅ {} updated", sub).green().to_string());
@@ -187,8 +190,6 @@ fn run_git_sync(sh: &Shell, msg: &str, push: bool) -> Result<()> {
     println!("{}", "✅ Git Sync Complete".green().bold());
     Ok(())
 }
-
-
 
 /// Bump version in workspace Cargo.toml
 fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
@@ -220,22 +221,26 @@ fn run_bump_version(sh: &Shell, bump_type: BumpType) -> Result<()> {
     // Update workspace dependencies versions for praborrow-* crates
     // This ensures that when we bump the version, all internal dependencies in the workspace
     // are also updated to point to the new version.
-    if let Some(deps) = doc.get_mut("workspace").and_then(|w| w.get_mut("dependencies")).and_then(|d| d.as_table_mut()) {
+    if let Some(deps) = doc
+        .get_mut("workspace")
+        .and_then(|w| w.get_mut("dependencies"))
+        .and_then(|d| d.as_table_mut())
+    {
         for (key, item) in deps.iter_mut() {
             if key.starts_with("praborrow") {
                 if let Some(table) = item.as_inline_table_mut() {
                     if let Some(ver) = table.get_mut("version") {
-                         *ver = Value::from(new_version.as_str());
+                        *ver = Value::from(new_version.as_str());
                     }
                 } else if let Some(table) = item.as_table_mut() {
-                     if let Some(ver) = table.get_mut("version") {
-                         *ver = value(&new_version);
+                    if let Some(ver) = table.get_mut("version") {
+                        *ver = value(&new_version);
                     }
                 }
             }
         }
     }
-    
+
     fs::write(cargo_toml_path, doc.to_string())?;
 
     println!("{}", "✅ Version bumped successfully!".green().bold());
@@ -274,8 +279,6 @@ fn bump_semver(version: &str, bump_type: BumpType) -> Result<String> {
     Ok(format!("{}.{}.{}", new_major, new_minor, new_patch))
 }
 
-
-
 /// Full release workflow
 fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool, dry_run: bool) -> Result<()> {
     println!("{}", "🚀 Starting Release Workflow...".magenta().bold());
@@ -293,9 +296,12 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool, dry_run: boo
         println!("   [Dry Run] Would bump version ({:?})", bump_type);
     } else {
         match run_bump_version(sh, bump_type) {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => {
-                println!("{}", "❌ Version bump failed. State is clean (or unchanged).".red());
+                println!(
+                    "{}",
+                    "❌ Version bump failed. State is clean (or unchanged).".red()
+                );
                 return Err(e);
             }
         }
@@ -305,8 +311,8 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool, dry_run: boo
     let new_version = if dry_run {
         "0.0.0-dryrun".to_string()
     } else {
-         let cargo_toml = fs::read_to_string("Cargo.toml")?;
-         extract_workspace_version(&cargo_toml).unwrap_or_else(|| "unknown".to_string())
+        let cargo_toml = fs::read_to_string("Cargo.toml")?;
+        extract_workspace_version(&cargo_toml).unwrap_or_else(|| "unknown".to_string())
     };
 
     // Wrap subsequent steps in a closure or block to handle rollback
@@ -328,23 +334,26 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool, dry_run: boo
     if let Err(e) = result {
         println!("{}", "❌ Build or Test failed.".red());
         if !dry_run {
-             println!("{}", "   Reverting version bump...".yellow());
-             cmd!(sh, "git checkout Cargo.toml crates/praborrow/Cargo.toml").run()?;
-             // Also need to revert other crates if bumped... 
-             // Ideally we'd valid 'git restore .' but that's risky.
-             // Rely on user to check git status.
-             println!("{}", "⚠️  Please check git status and revert manual changes if needed.".yellow());
+            println!("{}", "   Reverting version bump...".yellow());
+            cmd!(sh, "git checkout Cargo.toml crates/praborrow/Cargo.toml").run()?;
+            // Also need to revert other crates if bumped...
+            // Ideally we'd valid 'git restore .' but that's risky.
+            // Rely on user to check git status.
+            println!(
+                "{}",
+                "⚠️  Please check git status and revert manual changes if needed.".yellow()
+            );
         }
         return Err(e);
     }
-    
+
     // Step 4: Commit and push
     println!("\n{}", "Step 4/5: Committing changes...".cyan().bold());
     let commit_msg = format!("release: v{}", new_version);
-    
+
     if dry_run {
-         println!("   [Dry Run] Would commit with message: {:?}", commit_msg);
-         println!("   [Dry Run] Would push to origin");
+        println!("   [Dry Run] Would commit with message: {:?}", commit_msg);
+        println!("   [Dry Run] Would push to origin");
     } else {
         run_git_sync(sh, &commit_msg, true)?;
     }
@@ -362,11 +371,14 @@ fn run_release(sh: &Shell, bump_type: BumpType, skip_publish: bool, dry_run: boo
 
     println!("\n{}", "═".repeat(50).dimmed());
     if dry_run {
-         println!(
+        println!(
             "{}",
-            format!("🎉 [Dry Run] Release v{} completed successfully!", new_version)
-                .magenta()
-                .bold()
+            format!(
+                "🎉 [Dry Run] Release v{} completed successfully!",
+                new_version
+            )
+            .magenta()
+            .bold()
         );
     } else {
         println!(
