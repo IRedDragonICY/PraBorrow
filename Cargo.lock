@@ -2660,7 +2660,7 @@ dependencies = [
 
 [[package]]
 name = "prb-cli"
-version = "0.1.0"
+version = "0.9.2"
 dependencies = [
  "anyhow",
  "clap",

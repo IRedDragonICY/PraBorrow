@@ -60,7 +60,20 @@ fn publish_crate(dry_run: bool, krate: &Crate) -> Result<()> {
     if dry_run {
         cmd!(sh, "cargo publish --dry-run --allow-dirty").run()?;
     } else {
-        cmd!(sh, "cargo publish").run()?;
+        // Use std::process::Command to capture stderr and check for existing version
+        let output = std::process::Command::new("cargo")
+            .arg("publish")
+            .current_dir(&krate.path)
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            if stderr.contains("is already uploaded") || stderr.contains("already exists") {
+                println!("   [SKIP] {} (already published)", krate.name);
+            } else {
+                anyhow::bail!("Command `cargo publish` failed for {}: {}\n{}", krate.name, output.status, stderr);
+            }
+        }
     }
 
     Ok(())
