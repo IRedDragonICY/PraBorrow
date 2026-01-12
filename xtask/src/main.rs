@@ -85,25 +85,7 @@ fn main() -> Result<()> {
             cmd!(sh, "cargo test --workspace").run()?;
             println!("{}", "✅ All tests passed".green().bold());
         }
-        Commands::Verify => {
-            println!("{}", "🛡️ Verifying project integrity...".green().bold());
-            cmd!(sh, "cargo build --workspace").run()?;
-            cmd!(sh, "cargo test --workspace").run()?;
 
-            // Security check
-            println!("{}", "🔒 Running security audit...".blue());
-            if cmd!(sh, "cargo audit --version").quiet().run().is_ok() {
-                cmd!(sh, "cargo audit").run()?;
-            } else {
-                println!(
-                    "{}",
-                    "⚠️ cargo-audit not found. Skipping security check.".yellow()
-                );
-                println!("  Install with: cargo install cargo-audit");
-            }
-
-            println!("{}", "✅ Verification complete".green().bold());
-        }
         Commands::PreFlight => run_preflight(&sh)?,
         Commands::GitSync { message, push } => run_git_sync(&sh, &message, push)?,
         Commands::Publish { dry_run } => publish::run_publish_parallel(&sh, dry_run)?,
