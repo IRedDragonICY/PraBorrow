@@ -1,0 +1,115 @@
+    Checking praborrow-lease v0.8.0 (D:\Project\PraBorrow\crates\praborrow-lease)
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+    --> crates\praborrow-lease\src\raft.rs:1552:52
+     |
+1552 |             let mut storage: FileStorage<String> = FileStorage::open(path.clone()).unwrap();
+     |                                                    ^^^^^^^^^^^^^^^^^-------------- argument #2 of type `std::option::Option<Arc<metrics::RaftMetrics>>` is missing
+     |
+note: associated function defined here
+    --> crates\praborrow-lease\src\raft.rs:622:12
+     |
+ 622 |     pub fn open(path: PathBuf, metrics: Option<std::sync::Arc<crate::metrics::RaftMetrics>>) -> Result<Self, ConsensusError> {
+     |            ^^^^                ------------------------------------------------------------
+help: provide the argument
+     |
+1552 |             let mut storage: FileStorage<String> = FileStorage::open(path.clone(), /* std::option::Option<Arc<metrics::RaftMetrics>> */).unwrap();
+     |                                                                                  ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+    --> crates\praborrow-lease\src\raft.rs:1562:48
+     |
+1562 |             let storage: FileStorage<String> = FileStorage::open(path.clone()).unwrap();
+     |                                                ^^^^^^^^^^^^^^^^^-------------- argument #2 of type `std::option::Option<Arc<metrics::RaftMetrics>>` is missing
+     |
+note: associated function defined here
+    --> crates\praborrow-lease\src\raft.rs:622:12
+     |
+ 622 |     pub fn open(path: PathBuf, metrics: Option<std::sync::Arc<crate::metrics::RaftMetrics>>) -> Result<Self, ConsensusError> {
+     |            ^^^^                ------------------------------------------------------------
+help: provide the argument
+     |
+1562 |             let storage: FileStorage<String> = FileStorage::open(path.clone(), /* std::option::Option<Arc<metrics::RaftMetrics>> */).unwrap();
+     |                                                                              ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+    --> crates\praborrow-lease\src\raft.rs:1585:52
+     |
+1585 |             let mut storage: FileStorage<String> = FileStorage::open(path.clone()).unwrap();
+     |                                                    ^^^^^^^^^^^^^^^^^-------------- argument #2 of type `std::option::Option<Arc<metrics::RaftMetrics>>` is missing
+     |
+note: associated function defined here
+    --> crates\praborrow-lease\src\raft.rs:622:12
+     |
+ 622 |     pub fn open(path: PathBuf, metrics: Option<std::sync::Arc<crate::metrics::RaftMetrics>>) -> Result<Self, ConsensusError> {
+     |            ^^^^                ------------------------------------------------------------
+help: provide the argument
+     |
+1585 |             let mut storage: FileStorage<String> = FileStorage::open(path.clone(), /* std::option::Option<Arc<metrics::RaftMetrics>> */).unwrap();
+     |                                                                                  ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+    --> crates\praborrow-lease\src\raft.rs:1590:48
+     |
+1590 |             let storage: FileStorage<String> = FileStorage::open(path.clone()).unwrap();
+     |                                                ^^^^^^^^^^^^^^^^^-------------- argument #2 of type `std::option::Option<Arc<metrics::RaftMetrics>>` is missing
+     |
+note: associated function defined here
+    --> crates\praborrow-lease\src\raft.rs:622:12
+     |
+ 622 |     pub fn open(path: PathBuf, metrics: Option<std::sync::Arc<crate::metrics::RaftMetrics>>) -> Result<Self, ConsensusError> {
+     |            ^^^^                ------------------------------------------------------------
+help: provide the argument
+     |
+1590 |             let storage: FileStorage<String> = FileStorage::open(path.clone(), /* std::option::Option<Arc<metrics::RaftMetrics>> */).unwrap();
+     |                                                                              ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+    --> crates\praborrow-lease\src\raft.rs:1605:48
+     |
+1605 |         let mut storage: FileStorage<String> = FileStorage::open(path.clone()).unwrap();
+     |                                                ^^^^^^^^^^^^^^^^^-------------- argument #2 of type `std::option::Option<Arc<metrics::RaftMetrics>>` is missing
+     |
+note: associated function defined here
+    --> crates\praborrow-lease\src\raft.rs:622:12
+     |
+ 622 |     pub fn open(path: PathBuf, metrics: Option<std::sync::Arc<crate::metrics::RaftMetrics>>) -> Result<Self, ConsensusError> {
+     |            ^^^^                ------------------------------------------------------------
+help: provide the argument
+     |
+1605 |         let mut storage: FileStorage<String> = FileStorage::open(path.clone(), /* std::option::Option<Arc<metrics::RaftMetrics>> */).unwrap();
+     |                                                                              ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+    --> crates\praborrow-lease\src\raft.rs:1632:52
+     |
+1632 |             let mut storage: FileStorage<String> = FileStorage::open(path.clone()).unwrap();
+     |                                                    ^^^^^^^^^^^^^^^^^-------------- argument #2 of type `std::option::Option<Arc<metrics::RaftMetrics>>` is missing
+     |
+note: associated function defined here
+    --> crates\praborrow-lease\src\raft.rs:622:12
+     |
+ 622 |     pub fn open(path: PathBuf, metrics: Option<std::sync::Arc<crate::metrics::RaftMetrics>>) -> Result<Self, ConsensusError> {
+     |            ^^^^                ------------------------------------------------------------
+help: provide the argument
+     |
+1632 |             let mut storage: FileStorage<String> = FileStorage::open(path.clone(), /* std::option::Option<Arc<metrics::RaftMetrics>> */).unwrap();
+     |                                                                                  ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+error[E0061]: this function takes 2 arguments but 1 argument was supplied
+    --> crates\praborrow-lease\src\raft.rs:1647:48
+     |
+1647 |             let storage: FileStorage<String> = FileStorage::open(path.clone()).unwrap();
+     |                                                ^^^^^^^^^^^^^^^^^-------------- argument #2 of type `std::option::Option<Arc<metrics::RaftMetrics>>` is missing
+     |
+note: associated function defined here
+    --> crates\praborrow-lease\src\raft.rs:622:12
+     |
+ 622 |     pub fn open(path: PathBuf, metrics: Option<std::sync::Arc<crate::metrics::RaftMetrics>>) -> Result<Self, ConsensusError> {
+     |            ^^^^                ------------------------------------------------------------
+help: provide the argument
+     |
+1647 |             let storage: FileStorage<String> = FileStorage::open(path.clone(), /* std::option::Option<Arc<metrics::RaftMetrics>> */).unwrap();
+     |                                                                              ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+For more information about this error, try `rustc --explain E0061`.
+error: could not compile `praborrow-lease` (lib test) due to 7 previous errors
