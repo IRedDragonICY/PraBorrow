@@ -260,7 +260,7 @@ dependencies = [
  "bitflags 2.10.0",
  "cexpr",
  "clang-sys",
- "itertools",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "regex",
@@ -493,7 +493,7 @@ version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
 dependencies = [
- "getrandom 0.2.16",
+ "getrandom 0.2.17",
  "once_cell",
  "tiny-keccak",
 ]
@@ -543,7 +543,7 @@ dependencies = [
  "clap",
  "criterion-plot",
  "is-terminal",
- "itertools",
+ "itertools 0.10.5",
  "num-traits",
  "once_cell",
  "oorandom",
@@ -564,7 +564,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
- "itertools",
+ "itertools 0.10.5",
 ]
 
 [[package]]
@@ -870,9 +870,9 @@ dependencies = [
 
 [[package]]
 name = "getrandom"
-version = "0.2.16"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "335ff9f135e4384c8150d6f27c6daed433577f86b4750418338c01a1a2528592"
+checksum = "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
 dependencies = [
  "cfg-if",
  "js-sys",
@@ -1360,6 +1360,24 @@ name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -1949,7 +1967,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "criterion",
  "opentelemetry",
@@ -1971,7 +1989,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-core"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "serde",
  "thiserror 2.0.17",
@@ -1980,7 +1998,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-defense"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "praborrow-core",
  "praborrow-prover",
@@ -1993,7 +2011,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-diplomacy"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "crossbeam-queue",
  "tracing",
@@ -2001,7 +2019,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-lease"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "bincode",
@@ -2028,7 +2046,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-logistics"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "bytes",
  "praborrow-core",
@@ -2038,7 +2056,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-macros"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2047,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-prover"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "lazy_static",
  "lru",
@@ -2060,7 +2078,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-sidl"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "crc64fast",
  "proc-macro2",
@@ -2129,7 +2147,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
 dependencies = [
  "heck",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "multimap",
  "once_cell",
@@ -2149,7 +2167,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5d2d8d10f3c6ded6da8b05b5fb3b8a5082514344d56c9f871412d29b4e075b4"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -2162,7 +2180,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.114",
@@ -2300,7 +2318,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
- "getrandom 0.2.16",
+ "getrandom 0.2.17",
 ]
 
 [[package]]
@@ -2427,7 +2445,7 @@ checksum = "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7"
 dependencies = [
  "cc",
  "cfg-if",
- "getrandom 0.2.16",
+ "getrandom 0.2.17",
  "libc",
  "untrusted",
  "windows-sys 0.52.0",
@@ -3858,6 +3876,6 @@ dependencies = [
 
 [[package]]
 name = "zmij"
-version = "1.0.12"
+version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fc5a66a20078bf1251bde995aa2fdcc4b800c70b5d92dd2c62abc5c60f679f8"
+checksum = "ac93432f5b761b22864c774aac244fa5c0fd877678a4c37ebf6cf42208f9c9ec"
