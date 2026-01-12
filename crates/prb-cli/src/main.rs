@@ -100,12 +100,22 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
     terminal: &mut Terminal<B>,
     mut app: App,
 ) -> io::Result<()> {
+    // Connect to gRPC if Online
+    let mut client = if let Mode::Online { address } = &app.mode {
+        use praborrow_lease::grpc::proto::control_plane_client::ControlPlaneClient;
+        let endpoint = format!("http://{}", address); // Ensure scheme
+        Some(ControlPlaneClient::connect(endpoint).await.ok())
+    } else {
+        None
+    };
+
     loop {
         terminal.draw(|f| ui(f, &app))?;
 
         if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                if app.is_typing {
+             if let Event::Key(key) = event::read()? {
+                 // ... handle inputs ...
+                 if app.is_typing {
                     match key.code {
                         KeyCode::Enter => app.is_typing = false,
                         KeyCode::Esc => {
@@ -140,21 +150,49 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
                         _ => {}
                     }
                 }
-            }
+             }
         }
 
         if !app.paused {
             app.tick_count += 1;
+            
+            // Poll gRPC every ~1s (10 ticks)
+            if let Some(Some(c)) = &mut client {
+                 if app.tick_count % 10 == 0 {
+                     use praborrow_lease::grpc::proto::{Empty, LogRequest};
+                     
+                     // Fetch Status
+                     if let Ok(response) = c.get_node_status(tonic::Request::new(Empty {})).await {
+                         let status = response.into_inner();
+                         app.logs.insert(0, format!("STATUS: {} (Term {})", status.state, status.current_term));
+                         if app.logs.len() > 100 { app.logs.pop(); }
+                     }
+
+                     // Fetch Logs
+                     if let Ok(response) = c.get_recent_logs(tonic::Request::new(LogRequest { limit: 5 })).await {
+                         let server_logs = response.into_inner().logs;
+                         for log in server_logs {
+                             if !app.logs.contains(&log) { // Simple dedup
+                                 app.logs.insert(0, log);
+                             }
+                         }
+                     }
+                 }
+            }
+
             // Every 50 ticks (~5s), simulate a deadlock check
             if app.tick_count % 50 == 0 {
-                if app.tick_count % 150 == 0 {
-                    app.deadlocks = vec![
-                        "Resource 'LEASE_DB_01' circular wait detected (Node A -> Node B -> Node A)".to_string(),
-                        "Dependency cycle in Sovereign graph: [Shard 4] -> [Shard 7] -> [Shard 4]".to_string(),
-                    ];
-                } else {
-                    app.deadlocks.clear();
-                }
+                 // Keep simulation for offline mode or fallback
+                 if matches!(app.mode, Mode::Offline { .. }) {
+                    if app.tick_count % 150 == 0 {
+                        app.deadlocks = vec![
+                            "Resource 'LEASE_DB_01' circular wait detected (Node A -> Node B -> Node A)".to_string(),
+                            "Dependency cycle in Sovereign graph: [Shard 4] -> [Shard 7] -> [Shard 4]".to_string(),
+                        ];
+                    } else {
+                        app.deadlocks.clear();
+                    }
+                 }
             }
         }
 

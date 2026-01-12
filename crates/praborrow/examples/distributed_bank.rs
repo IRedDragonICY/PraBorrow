@@ -1,3 +1,4 @@
+extern crate alloc;
 use praborrow::lease::deadlock::WaitForGraph;
 use praborrow::prelude::*;
 use std::sync::Arc;
@@ -31,7 +32,8 @@ impl BankAccount {
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🏦 Distributed Bank Example: Starting...");
 
     // 1. Initialize Telemetry (Optional)
@@ -88,6 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nzz Verifying Integrity (Formal Proof Stub)...");
     let token = sovereign_account
         .verify_integrity()
+        .await
         .expect("Verification failed");
     println!(
         "   Refusing to annex without proof (Safety First): Token received {:?}",

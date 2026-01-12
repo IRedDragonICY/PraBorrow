@@ -68,6 +68,7 @@ fn publish_crate(dry_run: bool, krate: &Crate) -> Result<()> {
             // Use std::process::Command to capture stderr and check for existing version
             let output = std::process::Command::new("cargo")
                 .arg("publish")
+                .arg("--allow-dirty") // Added for agent workflow
                 .current_dir(&krate.path)
                 .output()?;
 

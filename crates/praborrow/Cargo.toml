@@ -39,6 +39,7 @@ praborrow-sidl = { workspace = true, optional = true }
 [dev-dependencies]
 criterion = { workspace = true }
 sha2 = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [[bench]]
 name = "constitution_bench"

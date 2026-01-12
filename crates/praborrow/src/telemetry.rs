@@ -26,40 +26,35 @@ impl TelemetryConfig {
 
     /// Initializes the telemetry subsystem with this configuration.
     pub fn init(self) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-        // Set global propagator
-        opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
-
-        // Create OTLP exporter
-        // Note: Currently we only support gRPC (tonic) as per original implementation
-        // but the config allows for future HTTP support.
-        let mut exporter = opentelemetry_otlp::new_exporter().tonic();
-
-        if let Some(endpoint) = self.otlp_endpoint {
-            exporter = exporter.with_endpoint(endpoint);
-        }
-
-        let tracer = opentelemetry_otlp::new_pipeline()
-            .tracing()
-            .with_exporter(exporter)
-            .with_trace_config(opentelemetry_sdk::trace::config().with_resource(
-                opentelemetry_sdk::Resource::new(vec![opentelemetry::KeyValue::new(
-                    "service.name",
-                    self.service_name,
-                )]),
-            ))
-            .install_batch(opentelemetry_sdk::runtime::Tokio)?;
-
-        // Create tracing layer
-        let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
-
         // Create env filter layer
         let filter = tracing_subscriber::EnvFilter::new(self.log_level);
+        let registry = tracing_subscriber::registry().with(filter);
 
-        // Initialize subscriber
-        tracing_subscriber::registry()
-            .with(telemetry)
-            .with(filter)
-            .try_init()?;
+        if let Some(endpoint) = self.otlp_endpoint {
+            // Set global propagator only if using OTLP
+            opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
+
+            let exporter = opentelemetry_otlp::new_exporter()
+                .tonic()
+                .with_endpoint(endpoint);
+
+            let tracer = opentelemetry_otlp::new_pipeline()
+                .tracing()
+                .with_exporter(exporter)
+                .with_trace_config(opentelemetry_sdk::trace::config().with_resource(
+                    opentelemetry_sdk::Resource::new(vec![opentelemetry::KeyValue::new(
+                        "service.name",
+                        self.service_name,
+                    )]),
+                ))
+                .install_batch(opentelemetry_sdk::runtime::Tokio)?;
+
+            let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+            registry.with(telemetry).try_init()?;
+        } else {
+            // Fallback to standard logging if no OTLP
+            registry.with(tracing_subscriber::fmt::layer()).try_init()?;
+        }
 
         Ok(())
     }
@@ -112,19 +107,8 @@ impl TelemetryConfigBuilder {
     }
 }
 
-/// Initializes the telemetry subsystem.
-///
-/// # Deprecated
-/// Use `TelemetryConfig::builder().service_name(name).init()` instead.
-#[deprecated(since = "0.8.0", note = "Use TelemetryConfig::builder() instead")]
-pub fn init_tracing(
-    service_name: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    TelemetryConfig::builder()
-        .service_name(service_name)
-        .build()
-        .init()
-}
+// init_tracing removed in favor of TelemetryConfig::builder()
+
 
 /// Shuts down the telemetry subsystem, flushing pending spans.
 pub fn shutdown_tracing() {
