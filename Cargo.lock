@@ -2511,7 +2511,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "criterion",
  "opentelemetry",
@@ -2533,7 +2533,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-core"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "serde",
  "thiserror 2.0.17",
@@ -2542,7 +2542,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-defense"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "praborrow-core",
  "praborrow-prover",
@@ -2555,7 +2555,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-diplomacy"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "crossbeam-queue",
  "thiserror 2.0.17",
@@ -2564,7 +2564,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-lease"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "async-trait",
  "bincode",
@@ -2592,7 +2592,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-logistics"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "bytes",
  "praborrow-core",
@@ -2602,7 +2602,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-macros"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2611,7 +2611,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-prover"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "lazy_static",
  "lru 0.16.3",
@@ -2624,7 +2624,7 @@ dependencies = [
 
 [[package]]
 name = "praborrow-sidl"
-version = "0.9.0"
+version = "0.9.1"
 dependencies = [
  "crc64fast",
  "proc-macro2",
