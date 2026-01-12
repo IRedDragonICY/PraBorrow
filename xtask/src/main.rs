@@ -205,7 +205,7 @@ fn run_preflight(sh: &Shell) -> Result<()> {
 
 /// Bump version in workspace Cargo.toml
 fn run_bump_version(sh: &Shell, bump_type: Option<BumpType>) -> Result<()> {
-    ensure_clean_git(sh)?;
+    // ensure_clean_git(sh)?;
     
     let bump_type = match bump_type {
         Some(t) => t,

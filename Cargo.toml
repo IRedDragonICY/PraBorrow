@@ -14,7 +14,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.9.1"
+version = "0.9.2"
 edition = "2024"
 authors = ["ireddragonicy"]
 license = "MIT"
@@ -26,14 +26,14 @@ repository = "https://github.com/ireddragonicy/PraBorrow"
 # Centralized dependency management for consistent versions across all crates
 [workspace.dependencies]
 # Internal crates (default-features = false for flexibility)
-praborrow-core = { path = "crates/praborrow-core", version = "0.9.1", default-features = false }
-praborrow-defense = { path = "crates/praborrow-defense", version = "0.9.1" }
-praborrow-logistics = { path = "crates/praborrow-logistics", version = "0.9.1" }
-praborrow-diplomacy = { path = "crates/praborrow-diplomacy", version = "0.9.1" }
-praborrow-lease = { path = "crates/praborrow-lease", version = "0.9.1" }
-praborrow-sidl = { path = "crates/praborrow-sidl", version = "0.9.1" }
-praborrow-macros = { path = "crates/praborrow-macros", version = "0.9.1" }
-praborrow-prover = { path = "crates/praborrow-prover", version = "0.9.1", default-features = false }
+praborrow-core = { path = "crates/praborrow-core", version = "0.9.2", default-features = false }
+praborrow-defense = { path = "crates/praborrow-defense", version = "0.9.2" }
+praborrow-logistics = { path = "crates/praborrow-logistics", version = "0.9.2" }
+praborrow-diplomacy = { path = "crates/praborrow-diplomacy", version = "0.9.2" }
+praborrow-lease = { path = "crates/praborrow-lease", version = "0.9.2" }
+praborrow-sidl = { path = "crates/praborrow-sidl", version = "0.9.2" }
+praborrow-macros = { path = "crates/praborrow-macros", version = "0.9.2" }
+praborrow-prover = { path = "crates/praborrow-prover", version = "0.9.2", default-features = false }
 
 # Serialization
 serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
