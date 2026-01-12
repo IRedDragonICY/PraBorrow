@@ -392,6 +392,16 @@ fn run_release(sh: &Shell, bump_type: Option<BumpType>, skip_publish: bool, dry_
         );
     } else {
         println!("\n{}", "Step 5/5: Publishing to crates.io...".cyan().bold());
+        if !dry_run {
+            let confirmed = dialoguer::Confirm::new()
+                .with_prompt("Ready to publish to crates.io?")
+                .default(false)
+                .interact()?;
+            if !confirmed {
+                println!("{}", "Aborted".yellow());
+                return Ok(());
+            }
+        }
         publish::run_publish_parallel(sh, dry_run)?;
     }
 

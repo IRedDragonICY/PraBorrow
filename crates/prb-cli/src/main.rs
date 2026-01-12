@@ -70,9 +70,11 @@ struct App {
     tab_index: usize,
     should_quit: bool,
     logs: Vec<String>,
+    deadlocks: Vec<String>,
     paused: bool,
     filter_input: String,
     is_typing: bool,
+    tick_count: u64,
 }
 
 impl App {
@@ -85,9 +87,11 @@ impl App {
                 "System initialized".to_string(),
                 "Ready to inspect".to_string(),
             ],
+            deadlocks: Vec::new(),
             paused: false,
             filter_input: String::new(),
             is_typing: false,
+            tick_count: 0,
         }
     }
 }
@@ -135,6 +139,21 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
                         }
                         _ => {}
                     }
+                }
+            }
+        }
+
+        if !app.paused {
+            app.tick_count += 1;
+            // Every 50 ticks (~5s), simulate a deadlock check
+            if app.tick_count % 50 == 0 {
+                if app.tick_count % 150 == 0 {
+                    app.deadlocks = vec![
+                        "Resource 'LEASE_DB_01' circular wait detected (Node A -> Node B -> Node A)".to_string(),
+                        "Dependency cycle in Sovereign graph: [Shard 4] -> [Shard 7] -> [Shard 4]".to_string(),
+                    ];
+                } else {
+                    app.deadlocks.clear();
                 }
             }
         }
@@ -253,13 +272,30 @@ fn render_log_explorer(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, 
     frame.render_widget(list, area);
 }
 
-fn render_deadlocks(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, _app: &App) {
-    let paragraph = Paragraph::new("No deadlocks detected in Sovereign resource graph.")
-        .style(Style::default().fg(Color::Green))
-        .block(
-            Block::default()
-                .title("Deadlock Detector")
-                .borders(Borders::ALL),
-        );
-    frame.render_widget(paragraph, area);
+fn render_deadlocks(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, app: &App) {
+    if app.deadlocks.is_empty() {
+        let paragraph = Paragraph::new("\n  No deadlocks detected in Sovereign resource graph.\n  System is healthy.")
+            .style(Style::default().fg(Color::Green))
+            .block(
+                Block::default()
+                    .title("Deadlock Detector")
+                    .borders(Borders::ALL),
+            );
+        frame.render_widget(paragraph, area);
+    } else {
+        let items: Vec<ListItem> = app.deadlocks.iter()
+            .map(|d| ListItem::new(Line::from(vec![
+                Span::styled(" ⚠ ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                Span::raw(d)
+            ])))
+            .collect();
+            
+        let list = List::new(items)
+            .block(Block::default()
+                .title("DEADLOCKS DETECTED")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Red)))
+            .style(Style::default().fg(Color::LightRed));
+        frame.render_widget(list, area);
+    }
 }
