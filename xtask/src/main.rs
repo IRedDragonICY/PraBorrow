@@ -199,14 +199,19 @@ fn run_preflight(sh: &Shell) -> Result<()> {
         println!("{}", "⚠️  cargo-audit skipped (not installed)".yellow());
     }
 
-    println!("\n{}", "🎉 Pre-flight checks passed! Ready for takeoff.".green().bold());
+    println!(
+        "\n{}",
+        "🎉 Pre-flight checks passed! Ready for takeoff."
+            .green()
+            .bold()
+    );
     Ok(())
 }
 
 /// Bump version in workspace Cargo.toml
 fn run_bump_version(sh: &Shell, bump_type: Option<BumpType>) -> Result<()> {
     ensure_clean_git(sh)?;
-    
+
     let bump_type = match bump_type {
         Some(t) => t,
         None => {
@@ -306,7 +311,12 @@ fn bump_semver(version: &str, bump_type: BumpType) -> Result<String> {
 }
 
 /// Full release workflow
-fn run_release(sh: &Shell, bump_type: Option<BumpType>, skip_publish: bool, dry_run: bool) -> Result<()> {
+fn run_release(
+    sh: &Shell,
+    bump_type: Option<BumpType>,
+    skip_publish: bool,
+    dry_run: bool,
+) -> Result<()> {
     println!("{}", "🚀 Starting Release Workflow...".magenta().bold());
     println!("{}", "═".repeat(50).dimmed());
 

@@ -2600,6 +2600,7 @@ version = "1.0.0"
 dependencies = [
  "crossbeam-queue",
  "dashmap",
+ "serde",
  "thiserror 2.0.17",
  "tracing",
 ]
@@ -2669,10 +2670,14 @@ dependencies = [
 name = "praborrow-sidl"
 version = "1.0.0"
 dependencies = [
+ "async-trait",
  "crc64fast",
+ "praborrow-diplomacy",
  "proc-macro2",
  "quote",
+ "serde",
  "syn 2.0.114",
+ "tokio",
 ]
 
 [[package]]

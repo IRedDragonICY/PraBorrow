@@ -12,7 +12,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph, Tabs},
 };
-use std::{error::Error, io, path::PathBuf, time::Duration};
+use std::{collections::VecDeque, error::Error, io, path::PathBuf, time::Duration};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -69,7 +69,7 @@ struct App {
     mode: Mode,
     tab_index: usize,
     should_quit: bool,
-    logs: Vec<String>,
+    logs: VecDeque<String>,
     deadlocks: Vec<String>,
     paused: bool,
     filter_input: String,
@@ -83,10 +83,10 @@ impl App {
             mode,
             tab_index: 0,
             should_quit: false,
-            logs: vec![
+            logs: VecDeque::from(vec![
                 "System initialized".to_string(),
                 "Ready to inspect".to_string(),
-            ],
+            ]),
             deadlocks: Vec::new(),
             paused: false,
             filter_input: String::new(),
@@ -114,9 +114,9 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
 
         #[allow(clippy::collapsible_if)]
         if event::poll(Duration::from_millis(100))? {
-             if let Event::Key(key) = event::read()? {
-                 // ... handle inputs ...
-                 if app.is_typing {
+            if let Event::Key(key) = event::read()? {
+                // ... handle inputs ...
+                if app.is_typing {
                     match key.code {
                         KeyCode::Enter => app.is_typing = false,
                         KeyCode::Esc => {
@@ -151,46 +151,57 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
                         _ => {}
                     }
                 }
-             }
+            }
         }
 
         if !app.paused {
             app.tick_count += 1;
-            
+
             // Poll gRPC every ~1s (10 ticks)
             if let Some(Some(c)) = &mut client {
-                 #[allow(clippy::collapsible_if, clippy::manual_is_multiple_of)]
-                 if app.tick_count % 10 == 0 {
-                     use praborrow_lease::grpc::proto::{Empty, LogRequest};
-                     
-                     // Fetch Status
-                     if let Ok(response) = c.get_node_status(tonic::Request::new(Empty {})).await {
-                         let status = response.into_inner();
-                         app.logs.insert(0, format!("STATUS: {} (Term {})", status.state, status.current_term));
-                         if app.logs.len() > 100 { app.logs.pop(); }
-                     }
+                #[allow(clippy::collapsible_if, clippy::manual_is_multiple_of)]
+                if app.tick_count % 10 == 0 {
+                    use praborrow_lease::grpc::proto::{Empty, LogRequest};
 
-                     // Fetch Logs
-                     if let Ok(response) = c.get_recent_logs(tonic::Request::new(LogRequest { limit: 5 })).await {
-                         let server_logs = response.into_inner().logs;
-                         for log in server_logs {
-                             if !app.logs.contains(&log) { // Simple dedup
-                                 app.logs.insert(0, log);
-                             }
-                         }
-                     }
-                 }
+                    // Fetch Status
+                    if let Ok(response) = c.get_node_status(tonic::Request::new(Empty {})).await {
+                        let status = response.into_inner();
+                        app.logs.push_front(format!(
+                            "STATUS: {} (Term {})",
+                            status.state, status.current_term
+                        ));
+                        if app.logs.len() > 1000 {
+                            app.logs.pop_back();
+                        }
+                    }
+
+                    // Fetch Logs
+                    if let Ok(response) = c
+                        .get_recent_logs(tonic::Request::new(LogRequest { limit: 5 }))
+                        .await
+                    {
+                        let server_logs = response.into_inner().logs;
+                        for log in server_logs {
+                            if !app.logs.contains(&log) {
+                                // Simple dedup
+                                app.logs.push_front(log);
+                                if app.logs.len() > 1000 {
+                                    app.logs.pop_back();
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Every 50 ticks (~5s), simulate a deadlock check
             #[allow(clippy::manual_is_multiple_of)]
             if app.tick_count % 50 == 0 {
-                 // Keep simulation for offline mode or fallback
-                 if matches!(app.mode, Mode::Offline { .. }) {
-                        app.deadlocks.clear();
-                    }
-                 }
-
+                // Keep simulation for offline mode or fallback
+                if matches!(app.mode, Mode::Offline { .. }) {
+                    app.deadlocks.clear();
+                }
+            }
         }
 
         if app.should_quit {
@@ -264,7 +275,10 @@ fn ui(frame: &mut ratatui::Frame, app: &App) {
     let footer_text = if app.is_typing {
         format!("Filter: {}_", app.filter_input)
     } else if !app.filter_input.is_empty() {
-        format!("Filter: {} (Press '/' to edit, 'Esc' to clear) | 'p' Pause | 'q' Quit", app.filter_input)
+        format!(
+            "Filter: {} (Press '/' to edit, 'Esc' to clear) | 'p' Pause | 'q' Quit",
+            app.filter_input
+        )
     } else {
         "Press '/' to filter, 'p' to pause, 'q' to quit, 'Tab' to switch views".to_string()
     };
@@ -297,7 +311,8 @@ fn render_log_explorer(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, 
             if app.filter_input.is_empty() {
                 true
             } else {
-                log.to_lowercase().contains(&app.filter_input.to_lowercase())
+                log.to_lowercase()
+                    .contains(&app.filter_input.to_lowercase())
             }
         })
         .map(|log| ListItem::new(Line::from(Span::raw(log))))
@@ -309,27 +324,38 @@ fn render_log_explorer(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, 
 
 fn render_deadlocks(frame: &mut ratatui::Frame, area: ratatui::layout::Rect, app: &App) {
     if app.deadlocks.is_empty() {
-        let paragraph = Paragraph::new("\n  No deadlocks detected in Sovereign resource graph.\n  System is healthy.")
-            .style(Style::default().fg(Color::Green))
-            .block(
-                Block::default()
-                    .title("Deadlock Detector")
-                    .borders(Borders::ALL),
-            );
+        let paragraph = Paragraph::new(
+            "\n  No deadlocks detected in Sovereign resource graph.\n  System is healthy.",
+        )
+        .style(Style::default().fg(Color::Green))
+        .block(
+            Block::default()
+                .title("Deadlock Detector")
+                .borders(Borders::ALL),
+        );
         frame.render_widget(paragraph, area);
     } else {
-        let items: Vec<ListItem> = app.deadlocks.iter()
-            .map(|d| ListItem::new(Line::from(vec![
-                Span::styled(" ⚠ ", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-                Span::raw(d)
-            ])))
+        let items: Vec<ListItem> = app
+            .deadlocks
+            .iter()
+            .map(|d| {
+                ListItem::new(Line::from(vec![
+                    Span::styled(
+                        " ⚠ ",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(d),
+                ]))
+            })
             .collect();
-            
+
         let list = List::new(items)
-            .block(Block::default()
-                .title("DEADLOCKS DETECTED")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Red)))
+            .block(
+                Block::default()
+                    .title("DEADLOCKS DETECTED")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::Red)),
+            )
             .style(Style::default().fg(Color::LightRed));
         frame.render_widget(list, area);
     }

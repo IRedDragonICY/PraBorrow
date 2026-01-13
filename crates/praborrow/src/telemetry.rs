@@ -118,7 +118,6 @@ impl TelemetryConfigBuilder {
 
 // init_tracing removed in favor of TelemetryConfig::builder()
 
-
 /// Shuts down the telemetry subsystem, flushing pending spans.
 pub fn shutdown_tracing() {
     opentelemetry::global::shutdown_tracer_provider();

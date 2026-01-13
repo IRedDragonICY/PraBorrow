@@ -1,0 +1,44 @@
+    Checking praborrow-lease v1.0.0 (D:\Project\PraBorrow\crates\praborrow-lease)
+warning: unused import: `std::iter::Peekable`
+ --> crates\praborrow-sidl\src\parser.rs:2:5
+  |
+2 | use std::iter::Peekable;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `DeriveInput` and `parse_macro_input`
+ --> crates\praborrow-sidl\src\lib.rs:8:11
+  |
+8 | ...::{DeriveInput, parse_macro_input};
+  |       ^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Path`
+ --> crates\praborrow-sidl\src\lib.rs:9:17
+  |
+9 | ...th::{Path, Pat...
+  |         ^^^^
+
+warning: `praborrow-sidl` (lib) generated 3 warnings (run `cargo fix --lib -p praborrow-sidl` to apply 3 suggestions)
+warning: `praborrow-sidl` (lib) generated 3 warnings (3 duplicates)
+error[E0407]: method `finalize_conf_change` is not a member of trait `ConsensusEngine`
+    --> crates\praborrow-lease\src\engine.rs:1242:5
+     |
+1242 | /     async fn finalize_conf_change(
+1243 | |         &mut self,
+1244 | |         joint_config: ClusterConfig,
+1245 | |     ) -> Result<(), ConsensusError> {
+...    |
+1268 | |         Ok(())
+1269 | |     }
+     | |_____^ not a member of trait `ConsensusEngine`
+
+error[E0599]: no method named `finalize_conf_change` found for mutable reference `&mut RaftEngine<T, N, S>` in the current scope
+    --> crates\praborrow-lease\src\engine.rs:1149:19
+     |
+1149 |              self.finalize_conf_change(config).await?;
+     |                   ^^^^^^^^^^^^^^^^^^^^ method not found in `&mut RaftEngine<T, N, S>`
+
+Some errors have detailed explanations: E0407, E0599.
+For more information about an error, try `rustc --explain E0407`.
+error: could not compile `praborrow-lease` (lib) due to 2 previous errors
