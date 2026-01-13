@@ -14,6 +14,9 @@ use ratatui::{
 };
 use std::{collections::VecDeque, error::Error, io, path::PathBuf, time::Duration};
 
+const HEARTBEAT_TICK_RATE: u64 = 10;
+const DEADLOCK_CHECK_TICK_RATE: u64 = 50;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -92,10 +95,14 @@ struct App {
 impl App {
     fn new(mode: Mode) -> Self {
         let (connection_status, endpoint) = match &mode {
-            Mode::Online { address } => (
-                ConnectionStatus::Disconnected(Instant::now()), 
-                Some(format!("http://{}", address))
-            ),
+            Mode::Online { address } => {
+                let addr = if address.starts_with("http://") || address.starts_with("https://") {
+                    address.clone()
+                } else {
+                    format!("http://{}", address)
+                };
+                (ConnectionStatus::Disconnected(Instant::now()), Some(addr))
+            }
             Mode::Offline { .. } => (ConnectionStatus::OfflineMode, None),
         };
 
@@ -176,27 +183,28 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
         }
 
         // Connection Management Logic
-        if let Some(endpoint) = &app.endpoint {
-            if client.is_none() {
-                // Try to connect if cooldown passed
-                if last_reconnect_attempt.elapsed() >= Duration::from_secs(reconnect_backoff_secs) {
-                    last_reconnect_attempt = Instant::now();
-                    
-                    app.connection_status = ConnectionStatus::Reconnecting(reconnect_backoff_secs as usize);
-                    // Use connect_lazy? connect() is async but can timeout. 
-                    // Let's try direct connect with timeout validation.
-                    match ControlPlaneClient::connect(endpoint.clone()).await {
-                        Ok(c) => {
-                            client = Some(c);
-                            app.connection_status = ConnectionStatus::Connected;
-                            reconnect_backoff_secs = 1; // reset
-                            app.logs.push_front("Connected to backend.".to_string());
-                        }
-                        Err(e) => {
-                            app.logs.push_front(format!("Connection failed: {}", e));
-                            reconnect_backoff_secs = (reconnect_backoff_secs * 2).min(30); // max 30s
-                            app.connection_status = ConnectionStatus::Disconnected(Instant::now());
-                        }
+        if let Some(endpoint) = &app.endpoint
+            && client.is_none()
+        {
+            // Try to connect if cooldown passed
+            if last_reconnect_attempt.elapsed() >= Duration::from_secs(reconnect_backoff_secs) {
+                last_reconnect_attempt = Instant::now();
+
+                app.connection_status =
+                    ConnectionStatus::Reconnecting(reconnect_backoff_secs as usize);
+                // Use connect_lazy? connect() is async but can timeout.
+                // Let's try direct connect with timeout validation.
+                match ControlPlaneClient::connect(endpoint.clone()).await {
+                    Ok(c) => {
+                        client = Some(c);
+                        app.connection_status = ConnectionStatus::Connected;
+                        reconnect_backoff_secs = 1; // reset
+                        app.logs.push_front("Connected to backend.".to_string());
+                    }
+                    Err(e) => {
+                        app.logs.push_front(format!("Connection failed: {}", e));
+                        reconnect_backoff_secs = (reconnect_backoff_secs * 2).min(30); // max 30s
+                        app.connection_status = ConnectionStatus::Disconnected(Instant::now());
                     }
                 }
             }
@@ -208,9 +216,9 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
             let mut should_reconnect = false;
 
             if let Some(c) = &mut client {
-                 // Poll gRPC every ~1s (10 ticks)
+                // Poll gRPC every ~1s (10 ticks)
                 #[allow(clippy::collapsible_if, clippy::manual_is_multiple_of)]
-                if app.tick_count % 10 == 0 {
+                if app.tick_count % HEARTBEAT_TICK_RATE == 0 {
                     // Fetch Status
                     match c.get_node_status(tonic::Request::new(Empty {})).await {
                         Ok(response) => {
@@ -219,7 +227,7 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
                                 "STATUS: {} (Term {})",
                                 status.state, status.current_term
                             ));
-                             app.connection_status = ConnectionStatus::Connected;
+                            app.connection_status = ConnectionStatus::Connected;
                         }
                         Err(e) => {
                             // If status check fails, assume disconnection
@@ -230,7 +238,7 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
 
                     // Fetch Logs (if still connected)
                     if !should_reconnect {
-                         if let Ok(response) = c
+                        if let Ok(response) = c
                             .get_recent_logs(tonic::Request::new(LogRequest { limit: 5 }))
                             .await
                         {
@@ -242,7 +250,7 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
                             }
                         }
                     }
-                    
+
                     // Cap logs
                     if app.logs.len() > 1000 {
                         app.logs.truncate(1000);
@@ -257,7 +265,7 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
 
             // Every 50 ticks (~5s), simulate a deadlock check
             #[allow(clippy::manual_is_multiple_of)]
-            if app.tick_count % 50 == 0 {
+            if app.tick_count % DEADLOCK_CHECK_TICK_RATE == 0 {
                 // Keep simulation for offline mode
                 if matches!(app.mode, Mode::Offline { .. }) {
                     app.deadlocks.clear();
@@ -288,7 +296,7 @@ fn ui(frame: &mut ratatui::Frame, app: &App) {
             // Can't return string with lifetime issues here easily, let's format later or use fixed strings
             // Actually let's use a Cow or just format the whole header line
             ("RECONNECTING", Color::Yellow)
-        },
+        }
         ConnectionStatus::Disconnected(_) => ("DISCONNECTED", Color::Red),
         ConnectionStatus::OfflineMode => ("OFFLINE", Color::Gray),
     };
@@ -299,15 +307,15 @@ fn ui(frame: &mut ratatui::Frame, app: &App) {
     };
 
     let time_status = if app.paused { "PAUSED" } else { "RUNNING" };
-    
+
     let header_text = format!(
-        "PraBorrow Dashboard - {} | Status: {} | {}", 
+        "PraBorrow Dashboard - {} | Status: {} | {}",
         mode_str, status_text, time_status
     );
-    
+
     // For Reconnecting, maybe append retry count
     let header_text = if let ConnectionStatus::Reconnecting(secs) = app.connection_status {
-         format!("{} (Backoff {}s)", header_text, secs)
+        format!("{} (Backoff {}s)", header_text, secs)
     } else {
         header_text
     };

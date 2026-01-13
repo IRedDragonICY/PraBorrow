@@ -56,6 +56,8 @@ enum Commands {
         #[arg(long)]
         dry_run: bool,
     },
+    /// Run CI checks (fmt, clippy, test, deny)
+    CI,
 }
 
 #[derive(Clone, Copy, ValueEnum, Debug)]
@@ -95,8 +97,52 @@ fn main() -> Result<()> {
             skip_publish,
             dry_run,
         } => run_release(&sh, bump_type, skip_publish, dry_run)?,
+        Commands::CI => run_ci(&sh)?,
     }
 
+    Ok(())
+}
+
+fn run_ci(sh: &Shell) -> Result<()> {
+    println!("{}", "🔍 Running CI checks...".cyan().bold());
+
+    // 1. Format Check
+    println!("{}", "🎨 Checking formatting...".dimmed());
+    if let Err(e) = cmd!(sh, "cargo fmt -- --check").run() {
+        println!("{}", "❌ Formatting check failed".red());
+        return Err(e.into());
+    }
+    println!("{}", "✅ Formatting OK".green());
+
+    // 2. Clippy
+    println!("{}", "📎 Running Clippy...".dimmed());
+    if let Err(e) = cmd!(sh, "cargo clippy --workspace --all-targets -- -D warnings").run() {
+        println!("{}", "❌ Clippy failed".red());
+        return Err(e.into());
+    }
+    println!("{}", "✅ Clippy OK".green());
+
+    // 3. Tests
+    println!("{}", "🧪 Running tests...".dimmed());
+    if let Err(e) = cmd!(sh, "cargo test --workspace").run() {
+        println!("{}", "❌ Tests failed".red());
+        return Err(e.into());
+    }
+    println!("{}", "✅ Tests OK".green());
+
+    // 4. Deny
+    if cmd!(sh, "cargo deny --version").quiet().run().is_ok() {
+        println!("{}", "🚫 Checking licenses and bans...".dimmed());
+        if let Err(e) = cmd!(sh, "cargo deny check").run() {
+            println!("{}", "❌ cargo-deny failed".red());
+            return Err(e.into());
+        }
+        println!("{}", "✅ Licenses & Bans OK".green());
+    } else {
+        println!("{}", "⚠️  cargo-deny skipped (not installed)".yellow());
+    }
+
+    println!("\n{}", "🎉 All CI checks passed!".green().bold());
     Ok(())
 }
 

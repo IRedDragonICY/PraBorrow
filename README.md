@@ -36,11 +36,19 @@ The framework is modularized into specialized crates:
 | **`praborrow-macros`** | Proc-macro crate for `#[derive(Constitution)]` |
 | **`praborrow-sidl`** | Schema IDL for distributed protocols |
 
+## Prerequisites
+
+- **Rust**: Stable channel (latest).
+- **Z3 Theorem Prover**: Required for `praborrow-prover`.
+    - **Windows**: `winget install Microsoft.Z3` or download from [GitHub](https://github.com/Z3Prover/z3/releases). Set `Z3_SYS_Z3_HEADER` and `PATH`.
+    - **Linux**: `apt-get install libz3-dev`
+    - **macOS**: `brew install z3`
+
 ## Installation
 
 ```toml
 [dependencies]
-praborrow = "0.8.0"
+praborrow = "1.1.2"
 ```
 
 ## Quick Start
