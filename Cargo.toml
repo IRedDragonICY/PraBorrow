@@ -54,7 +54,7 @@ async-trait = "0.1"
 futures = "0.3"
 
 # Observability
-tracing = { version = "0.1", default-features = false }
+tracing = { version = "0.1", default-features = false, features = ["attributes"] }
 
 # Testing & Benchmarking
 criterion = "0.5"

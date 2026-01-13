@@ -2614,6 +2614,7 @@ dependencies = [
  "bytes",
  "config",
  "crc32fast",
+ "dashmap",
  "futures",
  "petgraph 0.6.5",
  "praborrow-core",
@@ -2677,6 +2678,7 @@ dependencies = [
  "quote",
  "serde",
  "syn 2.0.114",
+ "thiserror 2.0.17",
  "tokio",
 ]
 

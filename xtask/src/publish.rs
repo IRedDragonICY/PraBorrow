@@ -92,11 +92,12 @@ fn publish_crate(dry_run: bool, krate: &Crate) -> Result<()> {
                 );
             }
 
+            let backoff_secs = 5 * 2u64.pow(attempts - 1);
             println!(
-                "   [RETRY] {} (attempt {}/{}) - waiting 5s...",
-                krate.name, attempts, max_attempts
+                "   [RETRY] {} (attempt {}/{}) - waiting {}s...",
+                krate.name, attempts, max_attempts, backoff_secs
             );
-            std::thread::sleep(std::time::Duration::from_secs(5));
+            std::thread::sleep(std::time::Duration::from_secs(backoff_secs));
         }
     }
 
