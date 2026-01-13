@@ -1,0 +1,9 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running `target\debug\xtask.exe release patch`
+[1m[35m≡ƒÜÇ Starting Release Workflow...[39m[0m
+[2mΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ[0m
+
+[1m[36mStep 1/5: Bumping version...[39m[0m
+[31mΓ¥î Version bump failed. State is clean (or unchanged).[39m
+Error: Git workspace is dirty. Please commit or stash changes before releasing.
+error: process didn't exit successfully: `target\debug\xtask.exe release patch` (exit code: 1)
