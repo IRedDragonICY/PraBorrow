@@ -65,6 +65,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+use std::time::Instant;
+
+#[derive(Debug, Clone, PartialEq)]
+enum ConnectionStatus {
+    OfflineMode,
+    Connected,
+    Reconnecting(usize), // retries
+    Disconnected(Instant),
+}
+
 struct App {
     mode: Mode,
     tab_index: usize,
@@ -75,10 +85,20 @@ struct App {
     filter_input: String,
     is_typing: bool,
     tick_count: u64,
+    connection_status: ConnectionStatus,
+    endpoint: Option<String>,
 }
 
 impl App {
     fn new(mode: Mode) -> Self {
+        let (connection_status, endpoint) = match &mode {
+            Mode::Online { address } => (
+                ConnectionStatus::Disconnected(Instant::now()), 
+                Some(format!("http://{}", address))
+            ),
+            Mode::Offline { .. } => (ConnectionStatus::OfflineMode, None),
+        };
+
         Self {
             mode,
             tab_index: 0,
@@ -92,6 +112,8 @@ impl App {
             filter_input: String::new(),
             is_typing: false,
             tick_count: 0,
+            connection_status,
+            endpoint,
         }
     }
 }
@@ -100,14 +122,13 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
     terminal: &mut Terminal<B>,
     mut app: App,
 ) -> io::Result<()> {
-    // Connect to gRPC if Online
-    let mut client = if let Mode::Online { address } = &app.mode {
-        use praborrow_lease::grpc::proto::control_plane_client::ControlPlaneClient;
-        let endpoint = format!("http://{}", address); // Ensure scheme
-        Some(ControlPlaneClient::connect(endpoint).await.ok())
-    } else {
-        None
-    };
+    use praborrow_lease::grpc::proto::control_plane_client::ControlPlaneClient;
+    use praborrow_lease::grpc::proto::{Empty, LogRequest};
+
+    // Client handle. If None, we are disconnected/reconnecting.
+    let mut client: Option<ControlPlaneClient<tonic::transport::Channel>> = None;
+    let mut last_reconnect_attempt = Instant::now();
+    let mut reconnect_backoff_secs = 1;
 
     loop {
         terminal.draw(|f| ui(f, &app))?;
@@ -154,50 +175,90 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
             }
         }
 
+        // Connection Management Logic
+        if let Some(endpoint) = &app.endpoint {
+            if client.is_none() {
+                // Try to connect if cooldown passed
+                if last_reconnect_attempt.elapsed() >= Duration::from_secs(reconnect_backoff_secs) {
+                    last_reconnect_attempt = Instant::now();
+                    
+                    app.connection_status = ConnectionStatus::Reconnecting(reconnect_backoff_secs as usize);
+                    // Use connect_lazy? connect() is async but can timeout. 
+                    // Let's try direct connect with timeout validation.
+                    match ControlPlaneClient::connect(endpoint.clone()).await {
+                        Ok(c) => {
+                            client = Some(c);
+                            app.connection_status = ConnectionStatus::Connected;
+                            reconnect_backoff_secs = 1; // reset
+                            app.logs.push_front("Connected to backend.".to_string());
+                        }
+                        Err(e) => {
+                            app.logs.push_front(format!("Connection failed: {}", e));
+                            reconnect_backoff_secs = (reconnect_backoff_secs * 2).min(30); // max 30s
+                            app.connection_status = ConnectionStatus::Disconnected(Instant::now());
+                        }
+                    }
+                }
+            }
+        }
+
         if !app.paused {
             app.tick_count += 1;
 
-            // Poll gRPC every ~1s (10 ticks)
-            if let Some(Some(c)) = &mut client {
+            let mut should_reconnect = false;
+
+            if let Some(c) = &mut client {
+                 // Poll gRPC every ~1s (10 ticks)
                 #[allow(clippy::collapsible_if, clippy::manual_is_multiple_of)]
                 if app.tick_count % 10 == 0 {
-                    use praborrow_lease::grpc::proto::{Empty, LogRequest};
-
                     // Fetch Status
-                    if let Ok(response) = c.get_node_status(tonic::Request::new(Empty {})).await {
-                        let status = response.into_inner();
-                        app.logs.push_front(format!(
-                            "STATUS: {} (Term {})",
-                            status.state, status.current_term
-                        ));
-                        if app.logs.len() > 1000 {
-                            app.logs.pop_back();
+                    match c.get_node_status(tonic::Request::new(Empty {})).await {
+                        Ok(response) => {
+                            let status = response.into_inner();
+                            app.logs.push_front(format!(
+                                "STATUS: {} (Term {})",
+                                status.state, status.current_term
+                            ));
+                             app.connection_status = ConnectionStatus::Connected;
+                        }
+                        Err(e) => {
+                            // If status check fails, assume disconnection
+                            app.logs.push_front(format!("Heartbeat failed: {}", e));
+                            should_reconnect = true;
                         }
                     }
 
-                    // Fetch Logs
-                    if let Ok(response) = c
-                        .get_recent_logs(tonic::Request::new(LogRequest { limit: 5 }))
-                        .await
-                    {
-                        let server_logs = response.into_inner().logs;
-                        for log in server_logs {
-                            if !app.logs.contains(&log) {
-                                // Simple dedup
-                                app.logs.push_front(log);
-                                if app.logs.len() > 1000 {
-                                    app.logs.pop_back();
+                    // Fetch Logs (if still connected)
+                    if !should_reconnect {
+                         if let Ok(response) = c
+                            .get_recent_logs(tonic::Request::new(LogRequest { limit: 5 }))
+                            .await
+                        {
+                            let server_logs = response.into_inner().logs;
+                            for log in server_logs {
+                                if !app.logs.contains(&log) {
+                                    app.logs.push_front(log);
                                 }
                             }
                         }
                     }
+                    
+                    // Cap logs
+                    if app.logs.len() > 1000 {
+                        app.logs.truncate(1000);
+                    }
                 }
+            }
+
+            if should_reconnect {
+                client = None;
+                app.connection_status = ConnectionStatus::Disconnected(Instant::now());
             }
 
             // Every 50 ticks (~5s), simulate a deadlock check
             #[allow(clippy::manual_is_multiple_of)]
             if app.tick_count % 50 == 0 {
-                // Keep simulation for offline mode or fallback
+                // Keep simulation for offline mode
                 if matches!(app.mode, Mode::Offline { .. }) {
                     app.deadlocks.clear();
                 }
@@ -221,18 +282,40 @@ fn ui(frame: &mut ratatui::Frame, app: &App) {
         .split(frame.area());
 
     // Header
-    let mode_str = match &app.mode {
-        Mode::Online { address } => format!("Online Mode: {}", address),
-        Mode::Offline { path } => format!("Offline Mode: {:?}", path),
+    let (status_text, status_color) = match &app.connection_status {
+        ConnectionStatus::Connected => ("CONNECTED", Color::Green),
+        ConnectionStatus::Reconnecting(_retry) => {
+            // Can't return string with lifetime issues here easily, let's format later or use fixed strings
+            // Actually let's use a Cow or just format the whole header line
+            ("RECONNECTING", Color::Yellow)
+        },
+        ConnectionStatus::Disconnected(_) => ("DISCONNECTED", Color::Red),
+        ConnectionStatus::OfflineMode => ("OFFLINE", Color::Gray),
     };
 
-    let status = if app.paused { "PAUSED" } else { "RUNNING" };
-    let header_text = format!("PraBorrow Dashboard - {} [{}]", mode_str, status);
+    let mode_str = match &app.mode {
+        Mode::Online { address } => format!("Online: {}", address),
+        Mode::Offline { path } => format!("Offline: {:?}", path),
+    };
+
+    let time_status = if app.paused { "PAUSED" } else { "RUNNING" };
+    
+    let header_text = format!(
+        "PraBorrow Dashboard - {} | Status: {} | {}", 
+        mode_str, status_text, time_status
+    );
+    
+    // For Reconnecting, maybe append retry count
+    let header_text = if let ConnectionStatus::Reconnecting(secs) = app.connection_status {
+         format!("{} (Backoff {}s)", header_text, secs)
+    } else {
+        header_text
+    };
 
     let header = Paragraph::new(header_text)
         .style(
             Style::default()
-                .fg(Color::Cyan)
+                .fg(status_color)
                 .add_modifier(Modifier::BOLD),
         )
         .block(Block::default().borders(Borders::ALL));
