@@ -78,7 +78,7 @@ z3 = "0.19.7"
 lazy_static = "1.4"
 
 # gRPC
-tonic = { version = "0.9.2", features = ["tls-native-roots"] }
+tonic = { version = "0.9.2", features = ["tls"] }
 prost = "0.11"
 
 # TLS

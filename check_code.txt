@@ -1,0 +1,26 @@
+    Checking hyper v0.14.32
+warning: praborrow-prover@1.2.2: Z3 library not found via pkg-config: Could not run `PKG_CONFIG_ALLOW_SYSTEM_LIBS=1 PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 pkg-config --libs --cflags z3`
+warning: praborrow-prover@1.2.2: Ensure Z3 is installed and PKG_CONFIG_PATH is set if you intend to use the z3-backend.
+   Compiling praborrow-lease v1.2.2 (D:\Project\PraBorrow\crates\praborrow-lease)
+warning: praborrow-prover@1.2.2: Z3 library not found via pkg-config: Could not run `PKG_CONFIG_ALLOW_SYSTEM_LIBS=1 PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 pkg-config --libs --cflags z3`
+warning: praborrow-prover@1.2.2: Ensure Z3 is installed and PKG_CONFIG_PATH is set if you intend to use the z3-backend.
+    Checking tracing-opentelemetry v0.22.0
+error[E0599]: no method named `compile_protos` found for struct `tonic_build::Builder` in the current scope
+  --> crates\praborrow-lease\build.rs:16:14
+   |
+12 | /         tonic_build::configure()
+13 | |             .build_server(true)
+14 | |             .build_client(true)
+15 | |             .out_dir(&out_dir)
+16 | |             .compile_protos(&["proto/raft.proto"], &["proto"])
+   | |_____________-^^^^^^^^^^^^^^
+   |
+help: there is a method `compile` with a similar name
+   |
+16 -             .compile_protos(&["proto/raft.proto"], &["proto"])
+16 +             .compile(&["proto/raft.proto"], &["proto"])
+   |
+
+For more information about this error, try `rustc --explain E0599`.
+error: could not compile `praborrow-lease` (build script) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...

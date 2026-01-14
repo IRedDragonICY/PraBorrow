@@ -1,0 +1,8 @@
+warning: praborrow-prover@1.2.2: Z3 library not found via pkg-config: Could not run `PKG_CONFIG_ALLOW_SYSTEM_LIBS=1 PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 pkg-config --libs --cflags z3`
+warning: praborrow-prover@1.2.2: Ensure Z3 is installed and PKG_CONFIG_PATH is set if you intend to use the z3-backend.
+    Checking praborrow-lease v1.2.2 (D:\Project\PraBorrow\crates\praborrow-lease)
+warning: praborrow-prover@1.2.2: Z3 library not found via pkg-config: Could not run `PKG_CONFIG_ALLOW_SYSTEM_LIBS=1 PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 pkg-config --libs --cflags z3`
+warning: praborrow-prover@1.2.2: Ensure Z3 is installed and PKG_CONFIG_PATH is set if you intend to use the z3-backend.
+    Checking prb-cli v1.2.2 (D:\Project\PraBorrow\crates\prb-cli)
+    Checking praborrow v1.2.2 (D:\Project\PraBorrow\crates\praborrow)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.64s

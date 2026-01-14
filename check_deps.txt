@@ -1,0 +1,9 @@
+    Updating crates.io index
+error: failed to select a version for `tonic`.
+    ... required by package `praborrow-lease v1.2.2 (D:\Project\PraBorrow\crates\praborrow-lease)`
+versions that meet the requirements `^0.9.2` are: 0.9.2
+
+package `praborrow-lease` depends on `tonic` with feature `tls-native-roots` but `tonic` does not have that feature.
+
+
+failed to select a version for `tonic` which could resolve this conflict
