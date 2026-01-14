@@ -14,7 +14,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.2.1"
+version = "1.2.2"
 edition = "2024"
 authors = ["ireddragonicy"]
 license = "MIT"
@@ -78,8 +78,8 @@ z3 = "0.19.7"
 lazy_static = "1.4"
 
 # gRPC
-tonic = { version = "0.13", features = ["tls-native-roots"] }
-prost = "0.13"
+tonic = { version = "0.9.2", features = ["tls-native-roots"] }
+prost = "0.11"
 
 # TLS
 rustls = "0.23"
