@@ -9,3 +9,6 @@ target/
 *.log
 *_failure.txt
 release_failure*.txt
+
+# Check logs
+check_*.txt
