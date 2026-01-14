@@ -86,7 +86,7 @@ rustls = "0.23"
 tokio-rustls = "0.26"
 
 # Observability
-prometheus = "0.13"
+prometheus = "0.14"
 opentelemetry = "0.21"
 opentelemetry_sdk = { version = "0.21", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.14", features = ["grpc-tonic"] }

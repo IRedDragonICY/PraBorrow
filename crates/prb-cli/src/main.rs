@@ -254,7 +254,7 @@ async fn run_app<B: ratatui::backend::Backend<Error = io::Error>>(
                     // Fetch Deadlocks
                     if !should_reconnect {
                         if let Ok(response) = c.get_deadlocks(tonic::Request::new(Empty {})).await {
-                             app.deadlocks = response.into_inner().deadlocks;
+                            app.deadlocks = response.into_inner().deadlocks;
                         }
                     }
 
