@@ -1,0 +1,19 @@
+[package]
+name = "praborrow-dart"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Dart/Flutter bindings for PraBorrow using Flutter Rust Bridge."
+keywords = ["flutter", "dart", "bindings", "frb", "praborrow"]
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+name = "praborrow_dart"
+
+[dependencies]
+praborrow-core = { workspace = true }
+flutter_rust_bridge = "2.0.0-dev.28" # Using v2 as planned
+thiserror = { workspace = true }
+anyhow = "1.0"

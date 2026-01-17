@@ -1,0 +1,14 @@
+{
+    "name": "@ireddragonicy/praborrow",
+    "version": "1.2.3",
+    "description": "WASM bindings for PraBorrow ownership system",
+    "main": "praborrow_wasm.js",
+    "types": "praborrow_wasm.d.ts",
+    "files": [
+        "praborrow_wasm_bg.wasm",
+        "praborrow_wasm.js",
+        "praborrow_wasm.d.ts"
+    ],
+    "author": "IRedDragonICY",
+    "license": "MIT"
+}

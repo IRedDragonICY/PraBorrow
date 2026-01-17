@@ -58,6 +58,37 @@ enum Commands {
     },
     /// Run CI checks (fmt, clippy, test, deny)
     CI,
+    /// Generate bindings for Python (UniFFI) and Dart (FRB)
+    #[command(name = "generate-bindings")]
+    GenerateBindings,
+    /// Publish Python bindings to PyPI
+    #[command(name = "publish-pypi")]
+    PublishPyPI,
+    /// Publish WASM package to NPM
+    #[command(name = "publish-npm")]
+    PublishNpm,
+    /// Publish WASM package to JSR.io
+    #[command(name = "publish-jsr")]
+    PublishJsr,
+    /// Publish to ALL registries (Crates.io, PyPI, NPM, JSR)
+    #[command(name = "publish-all")]
+    PublishAll {
+        /// Skip Crates.io publishing
+        #[arg(long)]
+        skip_crates: bool,
+        /// Skip PyPI publishing
+        #[arg(long)]
+        skip_pypi: bool,
+        /// Skip NPM publishing
+        #[arg(long)]
+        skip_npm: bool,
+        /// Skip JSR publishing
+        #[arg(long)]
+        skip_jsr: bool,
+        /// Perform a dry-run (check packaging without uploading)
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 #[derive(Clone, Copy, ValueEnum, Debug)]
@@ -98,6 +129,17 @@ fn main() -> Result<()> {
             dry_run,
         } => run_release(&sh, bump_type, skip_publish, dry_run)?,
         Commands::CI => run_ci(&sh)?,
+        Commands::GenerateBindings => run_generate_bindings(&sh)?,
+        Commands::PublishPyPI => run_publish_pypi(&sh)?,
+        Commands::PublishNpm => run_publish_npm(&sh)?,
+        Commands::PublishJsr => run_publish_jsr(&sh)?,
+        Commands::PublishAll {
+            skip_crates,
+            skip_pypi,
+            skip_npm,
+            skip_jsr,
+            dry_run,
+        } => run_publish_all(&sh, skip_crates, skip_pypi, skip_npm, skip_jsr, dry_run)?,
     }
 
     Ok(())
@@ -489,5 +531,288 @@ fn ensure_clean_git(sh: &Shell) -> Result<()> {
     if !status.is_empty() {
         anyhow::bail!("Git workspace is dirty. Please commit or stash changes before releasing.");
     }
+    Ok(())
+}
+
+fn run_generate_bindings(sh: &Shell) -> Result<()> {
+    println!("{}", "🔗 Generating bindings...".cyan().bold());
+
+    // 1. Python (UniFFI)
+    println!("{}", "\n🐍 Generating Python bindings...".dimmed());
+    if cmd!(sh, "uniffi-bindgen --version").quiet().run().is_ok() {
+        // Ensure the library is built (needed for proc-macro based generation)
+        println!("  Compiling praborrow-bindings...");
+        cmd!(sh, "cargo build -p praborrow-bindings").quiet().run()?;
+
+        let out_dir = "bindings/python";
+        fs::create_dir_all(out_dir)?;
+        
+        // Determine library path (heuristics for Windows/Unix)
+        let lib_name = "praborrow_bindings";
+        let lib_path = if cfg!(windows) {
+            format!("target/debug/{}.dll", lib_name)
+        } else if cfg!(target_os = "macos") {
+            format!("target/debug/lib{}.dylib", lib_name)
+        } else {
+            format!("target/debug/lib{}.so", lib_name)
+        };
+
+        if !sh.path_exists(&lib_path) {
+             anyhow::bail!("Library not found at {}. Build failed?", lib_path);
+        }
+
+        if let Err(e) = cmd!(sh, "uniffi-bindgen generate {lib_path} --language python --out-dir {out_dir}").run() {
+             println!("{}", "❌ Python binding generation failed".red());
+             return Err(e.into());
+        }
+        println!("{}", "✅ Python bindings generated in bindings/python".green());
+    } else {
+        println!("{}", "⚠️  uniffi-bindgen not found. Install with: cargo install uniffi-bindgen".yellow());
+    }
+
+    // 2. Dart (Flutter Rust Bridge)
+    println!("{}", "\n🎯 Generating Dart bindings...".dimmed());
+    if cmd!(sh, "flutter_rust_bridge_codegen --version").quiet().run().is_ok() {
+        let _guard = sh.push_dir("crates/praborrow-dart");
+        if let Err(e) = cmd!(sh, "flutter_rust_bridge_codegen generate").run() {
+            println!("{}", "❌ Dart binding generation failed".red());
+            return Err(e.into());
+        }
+        println!("{}", "✅ Dart bindings generated".green());
+    } else {
+        println!("{}", "⚠️  flutter_rust_bridge_codegen not found. Install with: cargo install flutter_rust_bridge_codegen".yellow());
+    }
+
+    println!("\n{}", "🎉 Binding generation task complete.".green().bold());
+    Ok(())
+}
+
+fn run_publish_pypi(sh: &Shell) -> Result<()> {
+    println!("{}", "🐍 Publishing to PyPI...".cyan().bold());
+
+    let bindings_dir = "crates/praborrow-bindings";
+    if !sh.path_exists(bindings_dir) {
+        anyhow::bail!("Directory {} not found", bindings_dir);
+    }
+
+    let _guard = sh.push_dir(bindings_dir);
+
+    // Determine maturin command (try direct, then via python module)
+    let maturin_cmd = if cmd!(sh, "maturin --version").quiet().run().is_ok() {
+        vec!["maturin"]
+    } else if cmd!(sh, "python -m maturin --version").quiet().run().is_ok() {
+        println!("{}", "⚠️  'maturin' not in PATH, using 'python -m maturin'".yellow());
+        vec!["python", "-m", "maturin"]
+    } else {
+        println!("{}", "❌ maturin not found. Please install: pip install maturin".red());
+        anyhow::bail!("maturin not found");
+    };
+
+    // Construct command
+    let mut args = maturin_cmd;
+    args.push("publish");
+
+    // Run publish
+    let cmd_str = args.join(" ");
+    println!("  → Running: {}", cmd_str);
+    
+    // xshell cmd! macro requires literal string slices or specific construction for dynamic args.
+    // For dynamic command name/args, strictly using std::process::Command or xshell's strict API is needed.
+    // With xshell, we can't easily spread a Vec into `cmd!`.
+    // Simpler here: Just branching the xshell call or using std Command if complex.
+    // Or just use the branch directly.
+
+    if args[0] == "maturin" {
+        if let Err(e) = cmd!(sh, "maturin publish").run() {
+             println!("{}", "❌ PyPI publish failed".red());
+             return Err(e.into());
+        }
+    } else {
+         if let Err(e) = cmd!(sh, "python -m maturin publish").run() {
+             println!("{}", "❌ PyPI publish failed".red());
+             return Err(e.into());
+         }
+    }
+
+    println!("{}", "✅ Successfully published to PyPI".green().bold());
+    Ok(())
+}
+
+fn run_publish_npm(sh: &Shell) -> Result<()> {
+    println!("{}", "📦 Publishing to NPM...".cyan().bold());
+
+    let wasm_dir = "crates/praborrow-wasm";
+    if !sh.path_exists(wasm_dir) {
+        anyhow::bail!("Directory {} not found", wasm_dir);
+    }
+
+    // Build WASM first
+    println!("  Building WASM package...");
+    let _guard = sh.push_dir(wasm_dir);
+    if let Err(e) = cmd!(sh, "wasm-pack build --target web --out-dir pkg").run() {
+        println!("{}", "❌ WASM build failed".red());
+        return Err(e.into());
+    }
+
+    // Update package name in pkg/package.json
+    let pkg_json_path = "pkg/package.json";
+    if sh.path_exists(pkg_json_path) {
+        let content = fs::read_to_string(pkg_json_path)?;
+        let updated = content.replace("\"praborrow-wasm\"", "\"@ireddragonicy/praborrow\"");
+        fs::write(pkg_json_path, updated)?;
+    }
+
+    // Publish to NPM
+    let _pkg_guard = sh.push_dir("pkg");
+    if let Err(e) = cmd!(sh, "npm publish --access public").run() {
+        println!("{}", "❌ NPM publish failed".red());
+        return Err(e.into());
+    }
+
+    println!("{}", "✅ Successfully published to NPM".green().bold());
+    Ok(())
+}
+
+fn run_publish_jsr(sh: &Shell) -> Result<()> {
+    println!("{}", "🦕 Publishing to JSR.io...".cyan().bold());
+
+    let wasm_dir = "crates/praborrow-wasm";
+    if !sh.path_exists(wasm_dir) {
+        anyhow::bail!("Directory {} not found", wasm_dir);
+    }
+
+    // Build WASM first (if not already built)
+    let _guard = sh.push_dir(wasm_dir);
+    let pkg_dir = "pkg";
+    if !sh.path_exists(pkg_dir) {
+        println!("  Building WASM package...");
+        if let Err(e) = cmd!(sh, "wasm-pack build --target web --out-dir pkg").run() {
+            println!("{}", "❌ WASM build failed".red());
+            return Err(e.into());
+        }
+    }
+
+    // Create mod.ts if it doesn't exist
+    let mod_ts_path = "pkg/mod.ts";
+    if !sh.path_exists(mod_ts_path) {
+        fs::write(mod_ts_path, "// JSR entry point\nexport * from \"./praborrow_wasm.js\";\n")?;
+    }
+
+    // Copy jsr.json to pkg (if exists in root)
+    if sh.path_exists("jsr.json") {
+        fs::copy("jsr.json", "pkg/jsr.json")?;
+    }
+
+    // Publish to JSR
+    let _pkg_guard = sh.push_dir("pkg");
+    if let Err(e) = cmd!(sh, "npx jsr publish --allow-dirty").run() {
+        println!("{}", "❌ JSR publish failed".red());
+        return Err(e.into());
+    }
+
+    println!("{}", "✅ Successfully published to JSR.io".green().bold());
+    Ok(())
+}
+
+fn run_publish_all(
+    sh: &Shell,
+    skip_crates: bool,
+    skip_pypi: bool,
+    skip_npm: bool,
+    skip_jsr: bool,
+    dry_run: bool,
+) -> Result<()> {
+    println!("{}", "🚀 Publishing to ALL registries...".cyan().bold());
+    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+    if dry_run {
+        println!("{}", "🔍 DRY RUN MODE - No actual publishing will occur\n".yellow());
+    }
+
+    let mut success_count = 0;
+    let mut fail_count = 0;
+
+    // 1. Crates.io
+    if !skip_crates {
+        println!("\n{}", "🦀 [1/4] Crates.io...".cyan());
+        match publish::run_publish_parallel(sh, dry_run) {
+            Ok(_) => {
+                println!("{}", "  ✅ Crates.io publish successful!".green());
+                success_count += 1;
+            }
+            Err(e) => {
+                println!("{}", format!("  ❌ Crates.io failed: {}", e).red());
+                fail_count += 1;
+            }
+        }
+    } else {
+        println!("\n{}", "🦀 [1/4] Crates.io... SKIPPED".dimmed());
+    }
+
+    // 2. PyPI
+    if !skip_pypi && !dry_run {
+        println!("\n{}", "🐍 [2/4] PyPI...".cyan());
+        match run_publish_pypi(sh) {
+            Ok(_) => {
+                println!("{}", "  ✅ PyPI publish successful!".green());
+                success_count += 1;
+            }
+            Err(e) => {
+                println!("{}", format!("  ❌ PyPI failed: {}", e).red());
+                fail_count += 1;
+            }
+        }
+    } else if skip_pypi {
+        println!("\n{}", "🐍 [2/4] PyPI... SKIPPED".dimmed());
+    } else {
+        println!("\n{}", "🐍 [2/4] PyPI... SKIPPED (dry-run not supported)".dimmed());
+    }
+
+    // 3. NPM
+    if !skip_npm && !dry_run {
+        println!("\n{}", "📦 [3/4] NPM...".cyan());
+        match run_publish_npm(sh) {
+            Ok(_) => {
+                println!("{}", "  ✅ NPM publish successful!".green());
+                success_count += 1;
+            }
+            Err(e) => {
+                println!("{}", format!("  ❌ NPM failed: {}", e).red());
+                fail_count += 1;
+            }
+        }
+    } else if skip_npm {
+        println!("\n{}", "📦 [3/4] NPM... SKIPPED".dimmed());
+    } else {
+        println!("\n{}", "📦 [3/4] NPM... SKIPPED (dry-run not supported)".dimmed());
+    }
+
+    // 4. JSR
+    if !skip_jsr && !dry_run {
+        println!("\n{}", "🦕 [4/4] JSR.io...".cyan());
+        match run_publish_jsr(sh) {
+            Ok(_) => {
+                println!("{}", "  ✅ JSR publish successful!".green());
+                success_count += 1;
+            }
+            Err(e) => {
+                println!("{}", format!("  ❌ JSR failed: {}", e).red());
+                fail_count += 1;
+            }
+        }
+    } else if skip_jsr {
+        println!("\n{}", "🦕 [4/4] JSR.io... SKIPPED".dimmed());
+    } else {
+        println!("\n{}", "🦕 [4/4] JSR.io... SKIPPED (dry-run not supported)".dimmed());
+    }
+
+    // Summary
+    println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    if fail_count == 0 {
+        println!("{}", format!("✅✅✅ ALL {} PUBLISH OPERATIONS COMPLETE! ✅✅✅", success_count).green().bold());
+    } else {
+        println!("{}", format!("⚠️  Publish completed with {} success, {} failures", success_count, fail_count).yellow());
+    }
+
     Ok(())
 }

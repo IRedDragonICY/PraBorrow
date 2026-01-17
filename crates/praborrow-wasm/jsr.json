@@ -1,0 +1,17 @@
+{
+    "name": "@ireddragonicy/praborrow",
+    "version": "1.2.3",
+    "license": "MIT",
+    "exports": "./mod.ts",
+    "publish": {
+        "include": [
+            "jsr.json",
+            "mod.ts",
+            "praborrow_wasm.js",
+            "praborrow_wasm.d.ts",
+            "praborrow_wasm_bg.wasm",
+            "README.md",
+            "LICENSE"
+        ]
+    }
+}

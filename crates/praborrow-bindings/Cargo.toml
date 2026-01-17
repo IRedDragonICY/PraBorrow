@@ -1,0 +1,21 @@
+[package]
+name = "praborrow-bindings"
+version.workspace = true
+edition = "2021"
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "UniFFI bindings for PraBorrow (Python, etc.)"
+keywords = ["uniffi", "bindings", "python", "praborrow"]
+
+[lib]
+crate-type = ["cdylib"]
+name = "praborrow_bindings"
+
+[dependencies]
+praborrow-core = { workspace = true }
+uniffi = { version = "0.28.3" }
+thiserror = { workspace = true }
+
+[build-dependencies]
+uniffi = { version = "0.28.3", features = ["build"] }

@@ -1,0 +1,31 @@
+[package]
+name = "praborrow-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "WASM bindings for PraBorrow: A formal distributed ownership system."
+keywords = ["wasm", "praborrow", "distributed", "ownership", "sovereign"]
+categories = ["wasm", "api-bindings"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["console_error_panic_hook"]
+
+[dependencies]
+praborrow-core = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+serde-wasm-bindgen = "0.6.5"
+wasm-bindgen = "0.2.106"
+console_error_panic_hook = { version = "0.1", optional = true }
+tsify = { version = "0.4.5", features = ["js"] }
+getrandom = { version = "0.2", features = ["js"] }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

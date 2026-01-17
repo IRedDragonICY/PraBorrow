@@ -1,0 +1,26 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "praborrow"
+version = "1.2.3"
+description = "Python bindings for PraBorrow: A formal distributed ownership system."
+readme = "README.md"
+authors = [{name = "IRedDragonICY", email = "ireddragonicy@gmail.com"}]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+requires-python = ">=3.8"
+
+[tool.maturin]
+# UniFFI generates ctypes bindings, so we build as a cdylib.
+# The generated 'praborrow.py' (from xtask) should be included.
+bindings = "cffi" # Use 'cffi' to indicate a cdylib build.
+# Note: For pure uniffi, we might just need 'bin' if we lie to it, but 'cffi' is safer for cdylib.
+# However, maturin expects 'cffi' crates to have setup.py or similar usually? 
+# No, maturin handles cffi.
+features = []
